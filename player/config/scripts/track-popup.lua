@@ -1,4 +1,4 @@
-﻿-- Compact Oranix-style Audio + Subtitles popup (bottom-left), plus a strict
+-- Compact Oranix-style Audio + Subtitles popup (bottom-left), plus a strict
 -- subtitle on/off switch.
 -- Popup:  hover/scroll/Up/Down to move, click/Enter to pick, Esc or click outside to close.
 -- Switch: "toggle-subs" turns subtitles off, or back on with your preferred
@@ -202,12 +202,12 @@ local function render()
         it.header:upper(), "\\fsp2" .. fade))
     else
       if it.active then   -- the chosen row sits on a soft orange clay pill
-        table.insert(out, rrect(g.x + g.pad, ry + 2, g.pw - g.pad * 2, g.row - 4, math.floor(r * 0.6), "007AFF", "D6", fade))
+        table.insert(out, rrect(g.x + g.pad, ry + 2, g.pw - g.pad * 2, g.row - 4, math.floor(r * 0.6), "1409E5", "D6", fade))
       end
       if i + offset == hover then
         table.insert(out, rrect(g.x + g.pad, ry + 2, g.pw - g.pad * 2, g.row - 4, math.floor(r * 0.6), "FFFFFF", "DE", fade))
       end
-      if it.active then table.insert(out, text(g.x + g.fs * 0.9, cy, g.fs, "007AFF", true, "✓", fade)) end
+      if it.active then table.insert(out, text(g.x + g.fs * 0.9, cy, g.fs, "1409E5", true, "✓", fade)) end
       -- Long names (release names) are cut to fit; notes (download counts) sit on the right.
       local room = math.floor((g.pw - g.fs * 3.2 - (it.note and g.fs * 3 or 0)) / (g.fs * 0.46))
       local label = it.text
@@ -223,7 +223,7 @@ local function render()
     local th = g.ph - g.pad * 2
     local bh = math.max(g.row, th * g.rows / #items)
     local by = g.y + g.pad + (th - bh) * offset / (#items - g.rows)
-    table.insert(out, rrect(g.x + g.pw - g.pad * 0.7, by, math.max(3, g.fs * 0.18), bh, 2, "007AFF", "00", fade))
+    table.insert(out, rrect(g.x + g.pw - g.pad * 0.7, by, math.max(3, g.fs * 0.18), bh, 2, "1409E5", "00", fade))
   end
   ov.res_x, ov.res_y = g.w, g.h
   ov.data = table.concat(out, "\n")

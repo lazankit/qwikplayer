@@ -112,7 +112,7 @@ class OranixPlayer : Form
 
     OranixPlayer(string[] files)
     {
-        Text = "Oranix Player";
+        Text = "Notflix Player";
         string ico = Path.Combine(AppDir, "oranix-player.ico");
         if (File.Exists(ico)) Icon = new Icon(ico);
         BackColor = Color.Black;
@@ -201,7 +201,7 @@ class OranixPlayer : Form
         Mpv.mpv_observe_property(mpv, 4, Mpv.U8("window-minimized"), Mpv.FORMAT_FLAG);
         Mpv.mpv_observe_property(mpv, 5, Mpv.U8("idle-active"), Mpv.FORMAT_FLAG);
         for (int i = 0; i < files.Count; i++) Mpv.Command(mpv, "loadfile", files[i], i == 0 ? "replace" : "append");
-        if (startAt != null) ThreadPool.QueueUserWorkItem(_ => { Thread.Sleep(1200); var h = mpv; if (h != IntPtr.Zero) Mpv.Command(h, "show-text", "✓ Oranix Player updated", "2000"); });
+        if (startAt != null) ThreadPool.QueueUserWorkItem(_ => { Thread.Sleep(1200); var h = mpv; if (h != IntPtr.Zero) Mpv.Command(h, "show-text", "✓ Notflix Player updated", "2000"); });
 
         IntPtr ctx = mpv;
         new Thread(() => EventLoop(ctx)) { IsBackground = true, Name = "mpv events" }.Start();
@@ -237,7 +237,7 @@ class OranixPlayer : Form
     {
         switch (name) {
             case "media-title":
-                Text = string.IsNullOrEmpty(str) ? "Oranix Player" : str + " - Oranix Player";
+                Text = string.IsNullOrEmpty(str) ? "Notflix Player" : str + " - Notflix Player";
                 if (!string.IsNullOrEmpty(str)) EnsureSeriesPlaylist();
                 break;
             case "idle-active": ShowLibrary(flag); break;
@@ -290,7 +290,7 @@ class OranixPlayer : Form
 
     void ShowLibrary(bool show)
     {
-        if (show) { Text = "Oranix Player"; ShowCursor(); cursorTimer.Stop(); }
+        if (show) { Text = "Notflix Player"; ShowCursor(); cursorTimer.Stop(); }
         if (!libReady && show) { lib.Visible = lib.Enabled = lib.CoreWebView2 != null; return; }
         lib.Visible = show;
         lib.Enabled = show;   // a disabled window can't hold keyboard focus, so keys reach the video

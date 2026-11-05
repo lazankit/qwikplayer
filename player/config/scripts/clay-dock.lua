@@ -34,7 +34,7 @@ local function render()
     -- soft shadow rising above the sheet
     shape(0, top - math.floor(6 * s), w, dh, r, 0, "000000", a(0.55), string.format("\\blur%d", math.floor(26 * s))),
     -- faint orange ambience under the controls
-    shape(math.floor(w * 0.2), top + math.floor(dh * 0.35), math.floor(w * 0.6), math.floor(dh * 0.5), r, r, "007AFF", a(0.10), string.format("\\blur%d", math.floor(40 * s))),
+    shape(math.floor(w * 0.2), top + math.floor(dh * 0.35), math.floor(w * 0.6), math.floor(dh * 0.5), r, r, "1409E5", a(0.10), string.format("\\blur%d", math.floor(40 * s))),
     -- the glass body (smoky, see-through)
     shape(0, top, w, dh, r, 0, "2E2A28", a(0.68)),
     -- clay shine: soft light band across the upper part

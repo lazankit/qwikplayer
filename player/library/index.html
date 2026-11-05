@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Oranix Library</title>
+<title>Notflix</title>
 <style>
 @font-face { font-family: Poppins; src: url(https://oranix.fonts/Poppins-Regular.ttf); font-weight: 400; }
 @font-face { font-family: Poppins; src: url(https://oranix.fonts/Poppins-SemiBold.ttf); font-weight: 600; }
 @font-face { font-family: Poppins; src: url(https://oranix.fonts/Poppins-Bold.ttf); font-weight: 700; }
 :root { --bg: #141414; --panel: #1f1f1f; --line: rgba(255,255,255,.08); --text: #f2f2f2; --dim: #a3a3a3; --faint: #6b6b6b;
-  --accent: #ff7a00; --accent2: #ffa94d; --pad: clamp(20px, 4vw, 56px); --card: clamp(220px, 19vw, 300px); }
+  --accent: #e50914; --accent2: #ff3d47; --pad: clamp(20px, 4vw, 56px); --card: clamp(220px, 19vw, 300px); }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 Poppins, "Segoe UI", sans-serif; overflow-x: hidden; }
 body { user-select: none; }
@@ -19,10 +19,7 @@ button { font: inherit; color: inherit; border: 0; background: none; cursor: poi
 nav { position: fixed; inset: 0 0 auto 0; z-index: 20; display: flex; align-items: center; gap: 28px; padding: 14px var(--pad);
   background: linear-gradient(rgba(0,0,0,.75), transparent); transition: background .25s; }
 nav.solid { background: rgba(20,20,20,.96); box-shadow: 0 1px 0 var(--line); }
-.logo { font-weight: 700; font-size: 24px; letter-spacing: -.3px; display: flex; align-items: center; gap: 10px; }
-.logo b { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, var(--accent2), #f25c00); display: grid; place-items: center; }
-.logo b::after { content: ""; border-left: 11px solid #fff; border-top: 7px solid transparent; border-bottom: 7px solid transparent; margin-left: 3px; }
-.logo i { color: var(--accent); font-style: normal; }
+.logo { font-weight: 700; font-size: 30px; letter-spacing: 1px; color: var(--accent); transform: scaleY(1.18); text-shadow: 0 2px 10px rgba(229,9,20,.35); }
 .tabs { display: flex; gap: 22px; }
 .tabs button { color: var(--dim); font-size: 15px; padding: 4px 0; transition: color .15s; }
 .tabs button:hover { color: #fff; }
@@ -60,7 +57,7 @@ nav.solid { background: rgba(20,20,20,.96); box-shadow: 0 1px 0 var(--line); }
 .btn.ghost { background: rgba(110,110,110,.55); color: #fff; }
 .btn.ghost:hover { background: rgba(110,110,110,.4); }
 .btn.accent { background: var(--accent); color: #fff; }
-.btn.accent:hover { background: #ff8f26; }
+.btn.accent:hover { background: #f6121d; }
 
 /* rows */
 main { position: relative; z-index: 2; margin-top: -9vh; padding-bottom: 60px; }
@@ -114,7 +111,7 @@ main { position: relative; z-index: 2; margin-top: -9vh; padding-bottom: 60px; }
 .eps { padding: 0 var(--pad); max-width: 1180px; }
 .ep { display: grid; grid-template-columns: 34px 220px 1fr auto; gap: 22px; align-items: center; padding: 16px 18px; border-radius: 10px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .15s; }
 .ep:hover, .ep:focus-visible { background: rgba(255,255,255,.06); outline: none; }
-.ep.next { background: rgba(255,122,0,.08); box-shadow: inset 3px 0 0 var(--accent); }
+.ep.next { background: rgba(229,9,20,.10); box-shadow: inset 3px 0 0 var(--accent); }
 .ep .n { font-size: 24px; color: var(--dim); text-align: center; }
 .ep .art { width: 220px; }
 .ep .play { opacity: 0; }
@@ -137,6 +134,21 @@ main { position: relative; z-index: 2; margin-top: -9vh; padding-bottom: 60px; }
 .hrow .x:hover { color: #fff; background: rgba(255,255,255,.1); }
 .missing { opacity: .45; }
 
+/* Netflix-style hover actions and Top 10 */
+.card:hover, .card:focus-visible { transform: scale(1.1); transition: transform .25s ease .15s; }
+.art .hov { position: absolute; left: 10px; bottom: 12px; z-index: 3; display: flex; gap: 8px; opacity: 0; transform: translateY(6px); transition: .2s ease .15s; }
+.card:hover .hov, .card:focus-visible .hov { opacity: 1; transform: none; }
+.card:hover .art .name { opacity: 0; }
+.hov button { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; border: 2px solid rgba(255,255,255,.6); background: rgba(20,20,20,.7); }
+.hov button:hover { border-color: #fff; }
+.hov button.p { background: #fff; border-color: #fff; color: #111; }
+.hov button svg { width: 18px; height: 18px; fill: currentColor; }
+.hov button.on { background: var(--accent); border-color: var(--accent); }
+.card:hover .play { opacity: 0; }
+.top .card { flex: 0 0 calc(var(--card) * 1.25); display: flex; align-items: flex-end; }
+.top .card > div:last-child { flex: 1; min-width: 0; }
+.rank { font-size: clamp(110px, 10vw, 160px); font-weight: 700; line-height: .78; color: var(--bg); -webkit-text-stroke: 3px #5a5a5a; margin-right: -14px; letter-spacing: -8px; flex: none; }
+.top .card .t, .top .card .s { display: none; }
 .empty { text-align: center; padding: 22vh 20px; color: var(--dim); }
 .empty h1 { color: #fff; font-size: 30px; margin: 0 0 10px; }
 .folders { padding: 0 var(--pad); max-width: 900px; }
@@ -150,7 +162,7 @@ main { position: relative; z-index: 2; margin-top: -9vh; padding-bottom: 60px; }
 </head>
 <body>
 <nav id="nav">
-  <div class="logo"><b></b><span>Oran<i>ix</i></span></div>
+  <div class="logo">NOTFLIX</div>
   <div class="tabs">
     <button data-go="home">Home</button>
     <button data-go="series">Series</button>
@@ -212,30 +224,43 @@ function art(key, inner, cls = '') {
 }
 function bar(p) { return p > 0 && p < 1 ? `<div class="bar"><i style="width:${(p * 100).toFixed(1)}%"></i></div>` : ''; }
 function playIcon() { return `<div class="play">${ICON.play}</div>`; }
+function hov(path, show) {
+  const h = path && H(path);
+  return `<div class="hov">${path ? `<button class="p" title="Play" data-play="${esc(path)}">${ICON.play}</button>
+    <button class="${h && h.watched ? 'on' : ''}" title="${h && h.watched ? 'Mark as unwatched' : 'Mark as watched'}" data-watched="${esc(path)}" data-to="${h && h.watched ? 0 : 1}">${ICON.check}</button>` : ''}
+    ${show ? `<button title="Episodes" data-show="${esc(show)}">${ICON.info}</button>` : ''}</div>`;
+}
 
 function epCard(sh, e, sub) {
   const p = progress(e), h = H(e.path), d = dur(e);
   const left = h && !h.watched && d ? `${mins(d - h.pos)} left` : (d ? mins(d) : '');
   return `<div class="card" tabindex="0" data-play="${esc(e.path)}">
-    ${art(e.key, `<div class="ph">${esc(sh.name)}</div>${playIcon()}${bar(p)}${p >= 1 ? `<span class="badge done">Watched</span>` : ''}`)}
+    ${art(e.key, `<div class="ph">${esc(sh.name)}</div>${playIcon()}${hov(e.path, sh.id)}${bar(p)}${p >= 1 ? `<span class="badge done">Watched</span>` : ''}`)}
     <div class="t">${esc(sh.name)} · ${code(e)}</div><div class="s">${esc(sub || [epTitle(e), left].filter(Boolean).join(' · '))}</div></div>`;
 }
 function showCard(sh) {
   const n = allEps(sh).length, w = watchedCount(sh), seasons = sh.seasons.length;
   return `<div class="card" tabindex="0" data-show="${esc(sh.id)}">
-    ${art(sh.backdrop, `<div class="ph"></div><div class="name">${esc(sh.name)}</div>${playIcon()}${bar(w / n)}${w === n && n ? `<span class="badge done">Finished</span>` : ''}`)}
+    ${art(sh.backdrop, `<div class="ph"></div><div class="name">${esc(sh.name)}</div>${playIcon()}${hov(nextUp(sh).ep.path, sh.id)}${bar(w / n)}${w === n && n ? `<span class="badge done">Finished</span>` : ''}`)}
     <div class="t">${esc(sh.name)}</div><div class="s">${seasons} season${seasons > 1 ? 's' : ''} · ${n} episodes${w ? ` · ${w} watched` : ''}</div></div>`;
 }
 function fileCard(it, kind) {
   const p = progress(it), h = H(it.path), d = dur(it);
   const label = kind === 'movie' ? `${it.year || ''}${d ? ' · ' + mins(d) : ''}` : (h && !h.watched && d ? `${mins(d - h.pos)} left` : (d ? mins(d) : ''));
   return `<div class="card" tabindex="0" data-play="${esc(it.path)}">
-    ${art(it.key, `<div class="ph">${esc(it.title)}</div>${playIcon()}${bar(p)}${p >= 1 ? `<span class="badge done">Watched</span>` : ''}`)}
+    ${art(it.key, `<div class="ph">${esc(it.title)}</div>${playIcon()}${hov(it.path)}${bar(p)}${p >= 1 ? `<span class="badge done">Watched</span>` : ''}`)}
     <div class="t">${esc(it.title)}</div><div class="s">${esc(label)}</div></div>`;
 }
-function row(title, cards, note) {
+function topTen() {
+  const scored = [];
+  for (const sh of S.series) { const w = watchedCount(sh), t = lastActivity(allEps(sh).map(e => e.path)); if (w || t) scored.push({ score: w * 10 + 1, t, html: showCard(sh) }); }
+  for (const m of S.movies) { const h = H(m.path); if (h) scored.push({ score: h.watched ? 10 : 2, t: h.updated, html: fileCard(m, 'movie') }); }
+  scored.sort((a, b) => b.score - a.score || b.t - a.t);
+  return scored.slice(0, 10).map((x, i) => x.html.replace('<div class="card" tabindex="0"', `<div class="card" tabindex="0"><div class="rank">${i + 1}</div><div`).replace(/<\/div>$/, '</div></div>'));
+}
+function row(title, cards, note, cls) {
   if (!cards.length) return '';
-  return `<section class="row fade"><h2>${esc(title)}${note ? ` <small>${esc(note)}</small>` : ''}</h2><div class="track-wrap">
+  return `<section class="row fade ${cls || ''}"><h2>${esc(title)}${note ? ` <small>${esc(note)}</small>` : ''}</h2><div class="track-wrap">
     <button class="arrow l" data-scroll="-1">${ICON.left}</button><div class="track">${cards.join('')}</div><button class="arrow r" data-scroll="1">${ICON.right}</button></div></section>`;
 }
 
@@ -285,6 +310,7 @@ function pageHome() {
   recent.sort((a, b) => b.added - a.added);
   return hero() + `<main>
     ${row('Continue watching', cont.map(c => c.html))}
+    ${row('Top 10 in your library', topTen(), '', 'top')}
     ${row('Your series', series.map(showCard), `${S.series.length}`)}
     ${row('Movies', S.movies.map(m => fileCard(m, 'movie')))}
     ${row('Recently added', recent.slice(0, 20).map(r => r.html))}
@@ -364,7 +390,7 @@ function pageHistory() {
 
 function pageFolders() {
   return `<div class="page fade"><div class="title-row"><h1>Library folders</h1><div class="sp"></div><button class="btn accent" data-cmd="addFolder">${ICON.plus}Add folder</button></div>
-    <div class="folders"><p class="s" style="color:var(--dim);margin:0 0 16px">Oranix looks in these folders (and the folders inside them) for series and movies. Episodes named like <b>S01E05</b> are grouped into series and seasons.</p>
+    <div class="folders"><p class="s" style="color:var(--dim);margin:0 0 16px">Notflix looks in these folders (and the folders inside them) for series and movies. Episodes named like <b>S01E05</b> are grouped into series and seasons.</p>
     ${S.folders.map(f => `<div class="folder"><span>${esc(f)}</span><button class="x icon-btn" title="Remove" data-unfolder="${esc(f)}">${ICON.x}</button></div>`).join('')}</div></div>`;
 }
 function pageEmpty() {
