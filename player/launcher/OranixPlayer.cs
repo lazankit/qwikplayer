@@ -90,7 +90,7 @@ class OranixPlayer : Form
     readonly System.Windows.Forms.Timer liveDebounce = new System.Windows.Forms.Timer { Interval = 700 };
 
     // Library home screen (library\index.html in a WebView2 over the video), shown when nothing plays.
-    readonly WebView2 lib = new WebView2 { Dock = DockStyle.Fill, Visible = false, DefaultBackgroundColor = Color.FromArgb(20, 20, 20) };
+    readonly WebView2 lib = new WebView2 { Dock = DockStyle.Fill, Visible = false, Enabled = false, DefaultBackgroundColor = Color.FromArgb(20, 20, 20) };
     readonly System.Windows.Forms.Timer historyTimer = new System.Windows.Forms.Timer { Interval = 2000 };
     readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
     bool libReady, scanning;
@@ -124,10 +124,19 @@ class OranixPlayer : Form
         };
         Controls.Add(lib);
         lib.BringToFront();
+        // mpv draws into `screen` but doesn't receive its mouse input, so pass movement and clicks on to it
+        // (the control bar, seek bar, popups and double-click all depend on this).
+        screen.MouseMove += (o, e) => { if (mpv != IntPtr.Zero) Mpv.Command(mpv, "mouse", e.X.ToString(), e.Y.ToString()); };
+        screen.MouseDown += (o, e) => { string b = MouseName(e.Button); if (b != null && mpv != IntPtr.Zero) { Mpv.Command(mpv, "mouse", e.X.ToString(), e.Y.ToString()); Mpv.Command(mpv, "keydown", b); } };
+        screen.MouseUp += (o, e) => { string b = MouseName(e.Button); if (b != null && mpv != IntPtr.Zero) Mpv.Command(mpv, "keyup", b); };
+        screen.MouseLeave += (o, e) => { if (mpv != IntPtr.Zero) Mpv.Command(mpv, "mouse", "-1", "-1"); };
         Library.Load();
         Library.Ffmpeg = Path.Combine(AppDir, "alass", "bin", "ffmpeg.exe");
         Library.ThumbReady += key => { if (IsHandleCreated) BeginInvoke((Action)(() => SendThumb(key))); };
         historyTimer.Tick += (o, e) => RecordProgress();
+        Activated += (o, e) => { if (!lib.Visible) FocusVideo(); };   // coming back with Alt+Tab
+        // WebView2 takes keyboard focus when its page loads, even while hidden behind a playing video.
+        lib.GotFocus += (o, e) => { if (!lib.Visible) BeginInvoke((Action)FocusVideo); };
         historyTimer.Start();
         Shown += (o, e) => { InitLibrary(); Start(files.ToList(), null, false); };
         FormClosing += (o, e) => {
@@ -176,7 +185,7 @@ class OranixPlayer : Form
 
         IntPtr ctx = mpv;
         new Thread(() => EventLoop(ctx)) { IsBackground = true, Name = "mpv events" }.Start();
-        screen.Focus();
+        FocusVideo();
     }
 
     void EventLoop(IntPtr ctx)
@@ -258,10 +267,105 @@ class OranixPlayer : Form
     void ShowLibrary(bool show)
     {
         if (show) Text = "Oranix Player";
-        if (!libReady && show) { lib.Visible = lib.CoreWebView2 != null; return; }
+        if (!libReady && show) { lib.Visible = lib.Enabled = lib.CoreWebView2 != null; return; }
         lib.Visible = show;
+        lib.Enabled = show;   // a disabled window can't hold keyboard focus, so keys reach the video
         if (show) { lib.BringToFront(); SendState(); lib.Focus(); Rescan(); }
-        else screen.Focus();
+        else FocusVideo();
+    }
+
+    [DllImport("user32.dll")] static extern IntPtr SetFocus(IntPtr h);
+    [DllImport("user32.dll")] static extern int ToUnicode(uint vk, uint scan, byte[] state, StringBuilder buf, int size, uint flags);
+
+    // While a video plays the window itself holds keyboard focus and passes every key to mpv
+    // (mpv's embedded video window can't take focus, and the hidden library must not keep it).
+    void FocusVideo()
+    {
+        ActiveControl = null;
+        SetFocus(Handle);
+    }
+
+    static readonly Dictionary<Keys, string> SpecialKeys = new Dictionary<Keys, string> {
+        { Keys.Space, "SPACE" }, { Keys.Return, "ENTER" }, { Keys.Escape, "ESC" }, { Keys.Left, "LEFT" }, { Keys.Right, "RIGHT" },
+        { Keys.Up, "UP" }, { Keys.Down, "DOWN" }, { Keys.Back, "BS" }, { Keys.Tab, "TAB" }, { Keys.Delete, "DEL" }, { Keys.Insert, "INS" },
+        { Keys.Home, "HOME" }, { Keys.End, "END" }, { Keys.PageUp, "PGUP" }, { Keys.PageDown, "PGDWN" },
+        { Keys.MediaPlayPause, "PLAYPAUSE" }, { Keys.MediaNextTrack, "NEXT" }, { Keys.MediaPreviousTrack, "PREV" }, { Keys.MediaStop, "STOP" },
+        { Keys.Add, "KP_ADD" }, { Keys.Subtract, "KP_SUBTRACT" }, { Keys.Multiply, "KP_MULTIPLY" }, { Keys.Divide, "KP_DIVIDE" }, { Keys.Decimal, "KP_DEC" },
+    };
+
+    static string MpvKeyName(Keys key, bool shift, bool ctrl, bool alt)
+    {
+        string name;
+        bool isChar = false;
+        if (SpecialKeys.TryGetValue(key, out name)) { }
+        else if (key >= Keys.F1 && key <= Keys.F24) name = "F" + (key - Keys.F1 + 1);
+        else if (key >= Keys.NumPad0 && key <= Keys.NumPad9) name = "KP" + (key - Keys.NumPad0);
+        else if (key == Keys.ShiftKey || key == Keys.ControlKey || key == Keys.Menu || key == Keys.LWin || key == Keys.RWin) return null;
+        else {
+            // The character this key types with Shift only (with Ctrl or Alt it would be a control code).
+            var state = new byte[256];
+            if (shift) state[0x10] = 0x80;
+            var sb = new StringBuilder(8);
+            if (ToUnicode((uint)key, 0, state, sb, sb.Capacity, 0) != 1) return null;
+            name = sb.ToString();
+            if (name == "#") name = "SHARP";
+            isChar = true;
+        }
+        return (ctrl ? "Ctrl+" : "") + (alt ? "Alt+" : "") + (shift && !isChar ? "Shift+" : "") + name;
+    }
+
+    static string MouseName(MouseButtons b)
+    {
+        switch (b) {
+            case MouseButtons.Left: return "MBTN_LEFT";
+            case MouseButtons.Right: return "MBTN_RIGHT";
+            case MouseButtons.Middle: return "MBTN_MID";
+            case MouseButtons.XButton1: return "MBTN_BACK";
+            case MouseButtons.XButton2: return "MBTN_FORWARD";
+        }
+        return null;
+    }
+
+    readonly Dictionary<Keys, string> keysDown = new Dictionary<Keys, string>();
+
+    protected override void WndProc(ref Message m)
+    {
+        const int WM_KEYDOWN = 0x100, WM_KEYUP = 0x101, WM_SYSKEYDOWN = 0x104, WM_SYSKEYUP = 0x105;
+        const int WM_MOUSEWHEEL = 0x20A, WM_MOUSEHWHEEL = 0x20E;
+        // The wheel goes to the focused window (this one), not mpv's video window under the cursor.
+        if ((m.Msg == WM_MOUSEWHEEL || m.Msg == WM_MOUSEHWHEEL) && mpv != IntPtr.Zero && !lib.Visible) {
+            int delta = (short)(((long)m.WParam >> 16) & 0xFFFF);
+            string wheel = m.Msg == WM_MOUSEWHEEL ? (delta > 0 ? "WHEEL_UP" : "WHEEL_DOWN") : (delta > 0 ? "WHEEL_RIGHT" : "WHEEL_LEFT");
+            string mods = ((ModifierKeys & Keys.Control) != 0 ? "Ctrl+" : "") + ((ModifierKeys & Keys.Shift) != 0 ? "Shift+" : "");
+            Mpv.Command(mpv, "keypress", mods + wheel);
+            m.Result = IntPtr.Zero;
+            return;
+        }
+        bool isKey = m.Msg == WM_KEYDOWN || m.Msg == WM_KEYUP || m.Msg == WM_SYSKEYDOWN || m.Msg == WM_SYSKEYUP;
+        if (isKey && mpv != IntPtr.Zero && !lib.Visible) {
+            Keys key = (Keys)(int)m.WParam & Keys.KeyCode;
+            if (m.Msg == WM_KEYDOWN || m.Msg == WM_SYSKEYDOWN) {
+                if (key == Keys.F4 && (ModifierKeys & Keys.Alt) != 0) { base.WndProc(ref m); return; }   // Alt+F4 still closes
+                if (keysDown.ContainsKey(key)) return;   // auto-repeat: mpv repeats held keys itself
+                string name = MpvKeyName(key, (ModifierKeys & Keys.Shift) != 0, (ModifierKeys & Keys.Control) != 0, (ModifierKeys & Keys.Alt) != 0);
+                if (name == null) { base.WndProc(ref m); return; }
+                keysDown[key] = name;
+                Mpv.Command(mpv, "keydown", name);
+            } else {
+                string name;
+                if (keysDown.TryGetValue(key, out name)) { Mpv.Command(mpv, "keyup", name); keysDown.Remove(key); }
+            }
+            return;
+        }
+        base.WndProc(ref m);
+    }
+
+    protected override void OnDeactivate(EventArgs e)
+    {
+        // Don't leave keys "held" (e.g. Space at 2x) when switching away mid-press.
+        if (mpv != IntPtr.Zero) foreach (var k in keysDown.Values) Mpv.Command(mpv, "keyup", k);
+        keysDown.Clear();
+        base.OnDeactivate(e);
     }
 
     void Rescan()
@@ -300,7 +404,8 @@ class OranixPlayer : Form
         switch (cmd) {
             case "ready":
                 libReady = true;
-                if (mpv != IntPtr.Zero && Mpv.Get(mpv, "idle-active") == "yes") ShowLibrary(true); else SendState();
+                if (mpv != IntPtr.Zero && Mpv.Get(mpv, "idle-active") == "yes") ShowLibrary(true);
+                else { SendState(); FocusVideo(); }
                 break;
             case "play": if (path != null) PlayFromLibrary(path); break;
             case "rescan": Toast("Looking for new videos…"); Rescan(); break;
