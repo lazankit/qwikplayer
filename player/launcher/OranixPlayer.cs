@@ -94,6 +94,11 @@ class OranixPlayer : Form
     readonly System.Windows.Forms.Timer historyTimer = new System.Windows.Forms.Timer { Interval = 2000 };
     readonly JavaScriptSerializer json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
     bool libReady, scanning;
+    System.Threading.Timer closeWatchdog;
+    // Hide the pointer over the video after 2 s without movement (mpv's own autohide can't see our forwarded mouse).
+    readonly System.Windows.Forms.Timer cursorTimer = new System.Windows.Forms.Timer { Interval = 2000 };
+    bool cursorHidden; Point lastMouse;
+    void ShowCursor() { cursorTimer.Stop(); cursorTimer.Start(); if (cursorHidden) { cursorHidden = false; Cursor.Show(); } }
 
     [STAThread]
     static void Main(string[] args)
@@ -126,10 +131,18 @@ class OranixPlayer : Form
         lib.BringToFront();
         // mpv draws into `screen` but doesn't receive its mouse input, so pass movement and clicks on to it
         // (the control bar, seek bar, popups and double-click all depend on this).
-        screen.MouseMove += (o, e) => { if (mpv != IntPtr.Zero) Mpv.Command(mpv, "mouse", e.X.ToString(), e.Y.ToString()); };
-        screen.MouseDown += (o, e) => { string b = MouseName(e.Button); if (b != null && mpv != IntPtr.Zero) { Mpv.Command(mpv, "mouse", e.X.ToString(), e.Y.ToString()); Mpv.Command(mpv, "keydown", b); } };
+        screen.MouseMove += (o, e) => {
+            if (e.Location == lastMouse) return;   // Windows repeats WM_MOUSEMOVE without movement
+            lastMouse = e.Location; ShowCursor();
+            if (mpv != IntPtr.Zero) Mpv.Command(mpv, "mouse", e.X.ToString(), e.Y.ToString());
+        };
+        cursorTimer.Tick += (o, e) => {
+            cursorTimer.Stop();
+            if (!cursorHidden && !lib.Visible && ContainsFocus && screen.ClientRectangle.Contains(screen.PointToClient(Control.MousePosition))) { cursorHidden = true; Cursor.Hide(); }
+        };
+        screen.MouseDown += (o, e) => { ShowCursor(); string b = MouseName(e.Button); if (b != null && mpv != IntPtr.Zero) { Mpv.Command(mpv, "mouse", e.X.ToString(), e.Y.ToString()); Mpv.Command(mpv, "keydown", b); } };
         screen.MouseUp += (o, e) => { string b = MouseName(e.Button); if (b != null && mpv != IntPtr.Zero) Mpv.Command(mpv, "keyup", b); };
-        screen.MouseLeave += (o, e) => { if (mpv != IntPtr.Zero) Mpv.Command(mpv, "mouse", "-1", "-1"); };
+        screen.MouseLeave += (o, e) => { ShowCursor(); cursorTimer.Stop(); if (mpv != IntPtr.Zero) Mpv.Command(mpv, "mouse", "-1", "-1"); };
         Library.Load();
         Library.Ffmpeg = Path.Combine(AppDir, "alass", "bin", "ffmpeg.exe");
         Library.ThumbReady += key => { if (IsHandleCreated) BeginInvoke((Action)(() => SendThumb(key))); };
@@ -144,7 +157,11 @@ class OranixPlayer : Form
             if (mpv == IntPtr.Zero || closing) return;
             e.Cancel = true;   // let mpv save the position and shut down first; the event loop closes us
             closing = true;
+            historyTimer.Stop();
+            Hide();            // feels instant; the rest happens out of sight
             Mpv.Command(mpv, "quit");
+            // Safety net: never leave a frozen window or a stuck process behind.
+            closeWatchdog = new System.Threading.Timer(_ => Environment.Exit(0), null, 4000, Timeout.Infinite);
         };
         WatchConfig();
     }
@@ -193,9 +210,10 @@ class OranixPlayer : Form
         while (true) {
             var ev = (Mpv.Event)Marshal.PtrToStructure(Mpv.mpv_wait_event(ctx, -1), typeof(Mpv.Event));
             if (ev.id == Mpv.EVENT_SHUTDOWN) {
+                // Stop every other caller (timers, key and mouse forwarding) before the handle is destroyed.
+                Invoke((Action)(() => { if (mpv == ctx) mpv = IntPtr.Zero; }));
                 Mpv.mpv_terminate_destroy(ctx);
                 BeginInvoke((Action)(() => {
-                    mpv = IntPtr.Zero;
                     if (restarting) { restarting = false; Start(resumeFile == null ? new List<string>() : new List<string> { resumeFile }, resumeAt, resumePaused); }
                     else { closing = true; Close(); }
                 }));
@@ -215,7 +233,10 @@ class OranixPlayer : Form
     void OnProperty(string name, string str, bool flag)
     {
         switch (name) {
-            case "media-title": Text = string.IsNullOrEmpty(str) ? "Oranix Player" : str + " - Oranix Player"; break;
+            case "media-title":
+                Text = string.IsNullOrEmpty(str) ? "Oranix Player" : str + " - Oranix Player";
+                if (!string.IsNullOrEmpty(str)) EnsureSeriesPlaylist();
+                break;
             case "idle-active": ShowLibrary(flag); break;
             case "window-minimized": if (flag) WindowState = FormWindowState.Minimized; break;
             case "window-maximized":
@@ -266,7 +287,7 @@ class OranixPlayer : Form
 
     void ShowLibrary(bool show)
     {
-        if (show) Text = "Oranix Player";
+        if (show) { Text = "Oranix Player"; ShowCursor(); cursorTimer.Stop(); }
         if (!libReady && show) { lib.Visible = lib.Enabled = lib.CoreWebView2 != null; return; }
         lib.Visible = show;
         lib.Enabled = show;   // a disabled window can't hold keyboard focus, so keys reach the video
@@ -374,7 +395,7 @@ class OranixPlayer : Form
         scanning = true;
         ThreadPool.QueueUserWorkItem(_ => {
             try { Library.Scan(); } catch { }
-            BeginInvoke((Action)(() => { scanning = false; SendState(); Library.StartThumbnails(); }));
+            BeginInvoke((Action)(() => { scanning = false; SendState(); EnsureSeriesPlaylist(); Library.StartThumbnails(); }));
         });
     }
 
@@ -435,14 +456,32 @@ class OranixPlayer : Form
         if (mpv == IntPtr.Zero) return;
         string start = Library.ResumeAt(path).ToString("0.###", CultureInfo.InvariantCulture);
         Mpv.Command(mpv, "loadfile", path, "replace", "-1", "start=" + start);
-        var item = Library.Find(path);
-        if (item != null && item.kind == "episode") {
-            var eps = Library.ShowEpisodes(item.showId);
-            int at = eps.FindIndex(x => string.Equals(x.path, path, StringComparison.OrdinalIgnoreCase));
-            for (int i = 0; i < at; i++) Mpv.Command(mpv, "loadfile", eps[i].path, "insert-at", i.ToString(), "start=0");
-            for (int i = at + 1; i < eps.Count; i++) Mpv.Command(mpv, "loadfile", eps[i].path, "append", "-1", "start=" + Library.ResumeAt(eps[i].path).ToString("0.###", CultureInfo.InvariantCulture));
-        }
+        AddSeriesAround(path);
         ShowLibrary(false);
+    }
+
+    // Puts the rest of the series around the playing episode, so the next one follows on its own and
+    // Previous/Next work across seasons. Assumes the playlist holds only `path` (at position 0).
+    bool AddSeriesAround(string path)
+    {
+        var item = Library.Find(path);
+        if (item == null || item.kind != "episode") return false;
+        var eps = Library.ShowEpisodes(item.showId);
+        int at = eps.FindIndex(x => string.Equals(x.path, path, StringComparison.OrdinalIgnoreCase));
+        if (at < 0 || eps.Count < 2) return false;
+        for (int i = 0; i < at; i++) Mpv.Command(mpv, "loadfile", eps[i].path, "insert-at", i.ToString(), "start=0");
+        for (int i = at + 1; i < eps.Count; i++)
+            Mpv.Command(mpv, "loadfile", eps[i].path, "append", "-1", "start=" + Library.ResumeAt(eps[i].path).ToString("0.###", CultureInfo.InvariantCulture));
+        return true;
+    }
+
+    // An episode opened some other way (Explorer, drag & drop, Open file) gets its series playlist too.
+    void EnsureSeriesPlaylist()
+    {
+        if (mpv == IntPtr.Zero || Mpv.Get(mpv, "playlist-count") != "1") return;
+        string path = Mpv.Get(mpv, "path");
+        if (string.IsNullOrEmpty(path) || path.Contains("://")) return;
+        AddSeriesAround(Path.GetFullPath(path));
     }
 
     // History: sample the playing file's position every 2 s.
