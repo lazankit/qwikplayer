@@ -56,7 +56,7 @@ Copy-Item "$src\player\libmpv\arm64\libmpv-2.dll" "$p\libmpv\arm64"
 Copy-Item "$src\player\launcher\oranix-player.ico", "$src\player\LICENSE.libmpv.GPL" $p
 & $csc @common "/win32icon:$src\player\launcher\oranix-player.ico" "/out:$p\Oranix Player.exe" `
   "/r:$p\Microsoft.Web.WebView2.Core.dll" "/r:$p\Microsoft.Web.WebView2.WinForms.dll" `
-  /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll "$src\player\launcher\OranixPlayer.cs" "$src\player\launcher\Library.cs"
+  /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll "$src\player\launcher\OranixPlayer.cs" "$src\player\launcher\Library.cs" "$src\player\launcher\Intros.cs"
 if ($LASTEXITCODE) { throw 'Oranix Player build failed' }
 
 # Oranix Web: browser + live files.

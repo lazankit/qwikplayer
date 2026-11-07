@@ -4,7 +4,7 @@
 
 local SHOW_BEFORE = 45          -- seconds before the end
 local ov = mp.create_osd_overlay("ass-events")
-local visible, box, hovering = false, nil, false
+local visible, box, hovering, fired = false, nil, false, false
 
 local function next_entry()
   local list = mp.get_property_native("playlist") or {}
@@ -41,7 +41,7 @@ local function go()
   mp.commandv("playlist-next", "force")
 end
 
-local function draw(left)
+local function draw(left, total)
   local nxt = next_entry()
   local w, h = mp.get_osd_size()
   if not w or w == 0 then return end
@@ -49,7 +49,7 @@ local function draw(left)
   local bw, bh = math.floor(360 * s), math.floor(92 * s)
   local x, y = math.floor(w - bw - 48 * s), math.floor(h - bh - 190 * s)
   box = { x = x, y = y, w = bw, h = bh }
-  local p = math.max(0, math.min(1, 1 - left / SHOW_BEFORE))
+  local p = math.max(0, math.min(1, 1 - left / total))
   local fs = math.floor(34 * s)
   local out = {
     rrect(x, y + math.floor(8 * s), bw, bh, math.floor(10 * s), "000000", "70"),                     -- shadow
@@ -75,8 +75,15 @@ local function tick()
   local pos = mp.get_property_number("time-pos")
   local nxt = next_entry()
   if not dur or not pos or not nxt or dur < 300 then hide() return end
-  local left = dur - pos
-  if left > SHOW_BEFORE or left < 0 then hide() return end
+  local left, total = dur - pos, SHOW_BEFORE
+  local credits = mp.get_property_native("user-data/oranix/credits")
+  if type(credits) == "number" and credits > 0 then
+    -- End credits found (skip-intro.lua): offer the next episode as they start and play it 10 s later, like Netflix.
+    if pos < credits - 0.5 then hide() return end
+    total = 10
+    left = credits + total - pos
+    if left <= 0 then if not fired then fired = true; go() end return end
+  elseif left > SHOW_BEFORE or left < 0 then hide() return end
   if not visible then
     visible = true
     -- Clicks only go to the button while the pointer is on it; elsewhere the video keeps its usual click.
@@ -87,10 +94,10 @@ local function tick()
     if over then mp.add_forced_key_binding("MBTN_LEFT", "next_episode_click", go)
     else mp.remove_key_binding("next_episode_click") end
   end
-  draw(left)
+  draw(left, total)
 end
 
 mp.add_periodic_timer(0.25, tick)
 mp.observe_property("mouse-pos", "native", function() if visible then tick() end end)
-mp.register_event("file-loaded", hide)
+mp.register_event("file-loaded", function() fired = false; hide() end)
 mp.add_key_binding(nil, "go", go)

@@ -145,6 +145,9 @@ class OranixPlayer : Form
         screen.MouseLeave += (o, e) => { ShowCursor(); cursorTimer.Stop(); if (mpv != IntPtr.Zero) Mpv.Command(mpv, "mouse", "-1", "-1"); };
         Library.Load();
         Library.Ffmpeg = Path.Combine(AppDir, "alass", "bin", "ffmpeg.exe");
+        Intros.Ffmpeg = Library.Ffmpeg;
+        // Skip Intro data arrives in the background; tell skip-intro.lua to re-read it.
+        Intros.Updated += changed => { if (IsHandleCreated && !closing) BeginInvoke((Action)(() => { if (mpv != IntPtr.Zero) Mpv.Command(mpv, "script-message", "intros-updated"); })); };
         Library.ThumbReady += key => { if (IsHandleCreated) BeginInvoke((Action)(() => SendThumb(key))); };
         historyTimer.Tick += (o, e) => RecordProgress();
         Activated += (o, e) => { if (!lib.Visible) FocusVideo(); };   // coming back with Alt+Tab
@@ -367,7 +370,7 @@ class OranixPlayer : Form
             Keys key = (Keys)(int)m.WParam & Keys.KeyCode;
             if (m.Msg == WM_KEYDOWN || m.Msg == WM_SYSKEYDOWN) {
                 if (key == Keys.F4 && (ModifierKeys & Keys.Alt) != 0) { base.WndProc(ref m); return; }   // Alt+F4 still closes
-                if (keysDown.ContainsKey(key)) return;   // auto-repeat: mpv repeats held keys itself
+                if (((long)m.LParam & 0x40000000) != 0 && keysDown.ContainsKey(key)) return;   // auto-repeat (bit 30 = already down): mpv repeats held keys itself
                 string name = MpvKeyName(key, (ModifierKeys & Keys.Shift) != 0, (ModifierKeys & Keys.Control) != 0, (ModifierKeys & Keys.Alt) != 0);
                 if (name == null) { base.WndProc(ref m); return; }
                 keysDown[key] = name;
@@ -469,6 +472,7 @@ class OranixPlayer : Form
         var eps = Library.ShowEpisodes(item.showId);
         int at = eps.FindIndex(x => string.Equals(x.path, path, StringComparison.OrdinalIgnoreCase));
         if (at < 0 || eps.Count < 2) return false;
+        Intros.Analyse(eps.Select(x => x.path).ToList(), path);   // find intros/credits for Skip Intro
         for (int i = 0; i < at; i++) Mpv.Command(mpv, "loadfile", eps[i].path, "insert-at", i.ToString(), "start=0");
         for (int i = at + 1; i < eps.Count; i++)
             Mpv.Command(mpv, "loadfile", eps[i].path, "append", "-1", "start=" + Library.ResumeAt(eps[i].path).ToString("0.###", CultureInfo.InvariantCulture));

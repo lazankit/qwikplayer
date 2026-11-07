@@ -161,6 +161,8 @@ local function is_local(path) return path and not path:match("^%a[%w+.-]*://") e
 
 -- ---------- search ----------
 
+local auto_pick = false   -- set by "auto": download the best result without showing the list
+
 local function search()
   local path = mp.get_property("path")
   if not path then state.status = "error"; state.message = "Open a video first"; publish() return end
@@ -198,6 +200,11 @@ local function search()
     state.status = #found > 0 and "results" or (failed == #queries and "error" or "empty")
     state.message = failed == #queries and "Couldn't reach OpenSubtitles — check your internet" or nil
     publish()
+    if auto_pick then
+      auto_pick = false
+      if #found > 0 then mp.commandv("script-message", "oranix-subs-download", "1") 
+      else mp.osd_message("No subtitles found online for this episode", 3) end
+    end
   end
   for _, q in ipairs(queries) do
     curl(q.url, nil, function(ok, res)
@@ -334,6 +341,9 @@ end
 
 mp.register_script_message("search", function() search() end)
 mp.register_script_message("download", download)
+mp.register_script_message("oranix-subs-download", download)
+-- Next episode with subtitles on but none in the folder: fetch the best match quietly.
+mp.register_script_message("auto", function() auto_pick = true; mp.osd_message("Finding subtitles for this episode…", 3); search() end)
 mp.register_script_message("sync", sync)
 mp.register_script_message("lang", function(code) settings.lang = code; save_settings(); search() end)
 mp.register_script_message("style", function(key, value)

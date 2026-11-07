@@ -9,6 +9,7 @@ local open, items, hover, offset = false, {}, 1, 0
 local hide_timer
 local MAX_ROWS = 10
 local preferred_sub   -- {lang=, title=} of the last subtitle the user picked
+local subs_on         -- nil until the user chooses; then kept across episodes like Netflix
 
 local LANGS = { en = "English", eng = "English", hi = "Hindi", hin = "Hindi", es = "Spanish", spa = "Spanish",
   fr = "French", fre = "French", fra = "French", de = "German", ger = "German", deu = "German",
@@ -268,6 +269,7 @@ local function pick(i)
     mp.osd_message("Speed: " .. it.text)
   else
     mp.set_property(it.kind == "audio" and "aid" or "sid", tostring(it.id))
+    if it.kind == "sub" then subs_on = it.id ~= "no" end
     if it.kind == "sub" and it.track then preferred_sub = { lang = it.track.lang, title = it.track.title } end
     mp.osd_message((it.kind == "audio" and "Audio: " or "Subtitles: ") .. it.text)
   end
@@ -320,26 +322,42 @@ show = function(m)
   render(); bump()
 end
 
+-- Turn on the preferred track (last one picked, else the best English one); fetch one online if the file has none.
+local function subs_turn_on(quiet)
+  local subs = sorted("sub")
+  if #subs == 0 then engine("auto") return end
+  local choice = subs[1]
+  if preferred_sub then
+    for _, t in ipairs(subs) do
+      if t.lang == preferred_sub.lang and t.title == preferred_sub.title then choice = t break end
+    end
+  end
+  mp.set_property("sid", tostring(choice.id))
+  if not quiet then mp.osd_message("Subtitles: " .. label(choice)) end
+end
+
 -- Strict subtitle switch: off <-> preferred track.
 local function toggle_subs()
   local sid = mp.get_property("sid")
   if sid and sid ~= "no" then
     mp.set_property("sid", "no")
+    subs_on = false
     mp.osd_message("Subtitles: Off")
   else
-    local subs = sorted("sub")
-    if #subs == 0 then mp.osd_message("No subtitles") return end
-    local choice = subs[1]
-    if preferred_sub then
-      for _, t in ipairs(subs) do
-        if t.lang == preferred_sub.lang and t.title == preferred_sub.title then choice = t break end
-      end
-    end
-    mp.set_property("sid", tostring(choice.id))
-    mp.osd_message("Subtitles: " .. label(choice))
+    subs_on = true
+    subs_turn_on(false)
   end
   if open then build(); render() end
 end
+
+-- New episode: keep the user's subtitle choice (off stays off, on finds a track, downloading one if needed).
+mp.register_event("file-loaded", function()
+  if subs_on == false then mp.set_property("sid", "no")
+  elseif subs_on == true then
+    local sid = mp.get_property("sid")
+    if not sid or sid == "no" or preferred_sub then subs_turn_on(true) end
+  end
+end)
 
 local function toggle(m) if open and mode == m then close() else show(m) end end
 mp.add_key_binding(nil, "toggle", function() toggle("tracks") end)
