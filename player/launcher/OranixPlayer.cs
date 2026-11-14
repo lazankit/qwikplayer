@@ -17,6 +17,10 @@ using System.Web.Script.Serialization;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
+// Name shown by Windows (Open with, taskbar, Task Manager).
+[assembly: System.Reflection.AssemblyTitle("Notflix Player")]
+[assembly: System.Reflection.AssemblyProduct("Notflix Player")]
+
 static class Mpv
 {
     const string Dll = "libmpv-2.dll";
