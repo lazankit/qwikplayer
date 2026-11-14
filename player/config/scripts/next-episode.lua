@@ -54,7 +54,7 @@ local function draw(left, total)
   local out = {
     rrect(x, y + math.floor(8 * s), bw, bh, math.floor(10 * s), "000000", "70"),                     -- shadow
     rrect(x, y, bw, bh, math.floor(10 * s), hovering and "FFFFFF" or "E6E6E6", "00"),               -- white button
-    rrect(x, y + bh - math.floor(6 * s), math.floor(bw * p), math.floor(6 * s), 1, "1409E5", "00"), -- countdown bar (red)
+    rrect(x, y + bh - math.floor(6 * s), math.floor(bw * p), math.floor(6 * s), 1, "007AFF", "00"), -- countdown bar (accent)
     string.format("{\\an4\\pos(%d,%d)\\fnPoppins\\b1\\fs%d\\bord0\\shad0\\1c&H141414&}▶  Next Episode", x + math.floor(26 * s), y + math.floor(32 * s), fs),
     string.format("{\\an4\\pos(%d,%d)\\fnPoppins\\fs%d\\bord0\\shad0\\1c&H555555&}%s", x + math.floor(26 * s), y + math.floor(64 * s), math.floor(24 * s),
       (label(nxt and nxt.filename):sub(1, 38)) .. string.format("   ·   %ds", math.max(0, math.floor(left)))),

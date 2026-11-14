@@ -113,7 +113,7 @@ local function render()
     local hist = history[norm(e.path)]
     if e.current then
       table.insert(out, rrect(g.x, y, g.pw, g.row, 0, "2A2A2A", "00"))
-      table.insert(out, rrect(g.x, y, math.floor(6 * s), g.row, 0, "1409E5", "00"))
+      table.insert(out, rrect(g.x, y, math.floor(6 * s), g.row, 0, "007AFF", "00"))
     elseif hv then
       table.insert(out, rrect(g.x, y, g.pw, g.row, 0, "FFFFFF", "E8"))
     end
@@ -126,13 +126,13 @@ local function render()
     if hist and hist.dur and hist.dur > 0 then table.insert(meta, math.floor(hist.dur / 60 + 0.5) .. " min") end
     if e.current then table.insert(meta, "Now playing")
     elseif hist and hist.watched then table.insert(meta, "Watched ✓") end
-    if #meta > 0 then table.insert(out, txt(tx2, y + math.floor(76 * s), 4, math.floor(21 * s), e.current and "1409E5" or "9A9A9A", false, table.concat(meta, "  ·  "))) end
+    if #meta > 0 then table.insert(out, txt(tx2, y + math.floor(76 * s), 4, math.floor(21 * s), e.current and "007AFF" or "9A9A9A", false, table.concat(meta, "  ·  "))) end
     -- progress bar for started episodes
     if hist and hist.dur and hist.dur > 0 and hist.pos and hist.pos > 30 and not hist.watched then
       local bw = math.floor(g.pw - (tx2 - g.x) - g.pad)
       local by = y + g.row - math.floor(14 * s)
       table.insert(out, rrect(tx2, by, bw, math.floor(4 * s), 1, "5A5A5A", "00"))
-      table.insert(out, rrect(tx2, by, math.max(2, math.floor(bw * math.min(1, hist.pos / hist.dur))), math.floor(4 * s), 1, "1409E5", "00"))
+      table.insert(out, rrect(tx2, by, math.max(2, math.floor(bw * math.min(1, hist.pos / hist.dur))), math.floor(4 * s), 1, "007AFF", "00"))
     end
     table.insert(hits, { x = g.x, y = y, w = g.pw, h = g.row, id = "ep" .. e.index })
   end
