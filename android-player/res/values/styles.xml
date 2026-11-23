@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.QP" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/qp_bg</item>
+        <item name="android:statusBarColor">@color/qp_bg</item>
+        <item name="android:navigationBarColor">@color/qp_bg</item>
+        <item name="android:colorAccent">@color/qp_volt_light</item>
+        <item name="android:colorPrimary">@color/qp_surface</item>
+        <item name="android:textColorPrimary">@color/qp_text</item>
+        <item name="android:textColorSecondary">@color/qp_muted</item>
+        <item name="android:alertDialogTheme">@style/Theme.QP.Dialog</item>
+    </style>
+    <style name="Theme.QP.Dialog" parent="android:Theme.Material.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/dialog_bg</item>
+        <item name="android:colorAccent">@color/qp_volt_light</item>
+        <item name="android:textColorPrimary">@color/qp_text</item>
+        <item name="android:textColorSecondary">@color/qp_muted</item>
+    </style>
+    <style name="Theme.QP.Player" parent="Theme.QP">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+</resources>

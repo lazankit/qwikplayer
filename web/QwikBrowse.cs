@@ -17,7 +17,8 @@ using Microsoft.Web.WebView2.WinForms;
 class QwikBrowse : Form
 {
     const string Home = "https://qwik.home/index.html";   // start page (saved sites + history), served from the profile folder
-    static readonly Color Charcoal = Color.FromArgb(31, 31, 31), Orange = Color.FromArgb(255, 122, 0);
+    static readonly Color Charcoal = Color.FromArgb(24, 21, 34), Volt = Color.FromArgb(116, 56, 255), VoltLight = Color.FromArgb(185, 160, 255), Ember = Color.FromArgb(255, 138, 43);
+    static readonly Color Raised = Color.FromArgb(36, 32, 51), Edge = Color.FromArgb(53, 47, 74);
 
     // Ad, pop-under and tracking networks. Matched against the request host and its parents.
     static readonly HashSet<string> AdHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) {
@@ -75,6 +76,7 @@ class QwikBrowse : Form
     readonly Pill star = new Pill();
     FormWindowState restoreState;
     string snapPath;
+    DateTime lastCloseTry = DateTime.MinValue;
     bool playerOn;   // the page reports when player mode is open
 
     // Saved sites and history, kept in profile\library.json.
@@ -111,8 +113,8 @@ class QwikBrowse : Form
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        int dark = 1, caption = 0x001F1F1F, text = 0x00FFFFFF;
-        DwmSetWindowAttribute(Handle, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, ref dark, 4);
+        int dark = 1, caption = 0x00221518, text = 0x00FFFFFF;
+        if (DwmSetWindowAttribute(Handle, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, ref dark, 4) != 0) DwmSetWindowAttribute(Handle, 19, ref dark, 4);
         DwmSetWindowAttribute(Handle, 35 /* DWMWA_CAPTION_COLOR */, ref caption, 4);
         DwmSetWindowAttribute(Handle, 36 /* DWMWA_TEXT_COLOR */, ref text, 4);
     }
@@ -120,6 +122,9 @@ class QwikBrowse : Form
     [STAThread]
     static void Main(string[] args)
     {
+        Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+        Application.ThreadException += (o, e) => LogCrash(e.Exception);
+        AppDomain.CurrentDomain.UnhandledException += (o, e) => { LogCrash(e.ExceptionObject as Exception); };
         profileDir = ResolveProfileDir();   // first of all: settle the data folder (moves the pre-rename one on the first run)
         SetProcessDPIAware();
         Application.EnableVisualStyles();
@@ -127,6 +132,12 @@ class QwikBrowse : Form
         int snap = Array.IndexOf(args, "--snap");
         Application.Run(new QwikBrowse(args.Length > 0 && args[0] != "--snap" ? args[0] : Home,
             snap >= 0 && snap + 1 < args.Length ? args[snap + 1] : null));
+    }
+
+    // Last-resort handlers: write crash.log in the profile folder and keep the window alive instead of the .NET crash dialog.
+    static void LogCrash(Exception ex)
+    {
+        try { File.AppendAllText(Path.Combine(ProfileDir, "crash.log"), DateTime.Now.ToString("s") + " " + (ex == null ? "unknown" : ex.ToString()) + "\r\n"); } catch { }
     }
 
     static string AppDir { get { return Path.GetDirectoryName(Application.ExecutablePath); } }
@@ -154,7 +165,10 @@ class QwikBrowse : Form
         bar.BackColor = Charcoal;
         bar.Padding = new Padding(px(10), px(8), px(10), px(8));
         var font = new Font("Segoe UI", 10f);
-        var icons = new Font("Segoe Fluent Icons", 11f);
+        // Segoe Fluent Icons ships with Windows 11 only; Windows 10 has Segoe MDL2 Assets with the same code points for these glyphs.
+        string iconFace = "Segoe Fluent Icons";
+        using (var probe = new Font(iconFace, 11f)) if (probe.Name != iconFace) iconFace = "Segoe MDL2 Assets";
+        var icons = new Font(iconFace, 11f);
         var tips = new ToolTip();
 
         Func<string, string, Action, Pill> iconBtn = (glyph, tip, act) => {
@@ -165,16 +179,16 @@ class QwikBrowse : Form
         };
         Func<DockStyle, int, Panel> gap = (side, w) => new Panel { Dock = side, Width = px(w), BackColor = Charcoal };
 
-        var player = new Pill { Glyph = "", IconFont = new Font("Segoe Fluent Icons", 9f), Text = "QwikPlayer",
+        var player = new Pill { Glyph = "", IconFont = new Font(iconFace, 9f), Text = "QwikPlayer",
             Font = new Font("Segoe UI Semibold", 10f), Dock = DockStyle.Right, PadX = px(16), Radius = px(18),
-            Fill = Orange, HoverFill = Color.FromArgb(255, 143, 38) };
+            Fill = Volt, HoverFill = Color.FromArgb(139, 91, 255) };
         tips.SetToolTip(player, "Open this page's video in the full QwikPlayer window (O) · Esc to go back");
         player.Click += (o, e) => TogglePlayer();
 
         shield.Glyph = "";
         shield.IconFont = icons;
         shield.Font = new Font("Segoe UI", 9f);
-        shield.ForeColor = Color.FromArgb(255, 169, 77);
+        shield.ForeColor = Ember;
         shield.Dock = DockStyle.Right;
         shield.PadX = px(10);
         shield.HoverFill = Color.Transparent;
@@ -192,16 +206,16 @@ class QwikBrowse : Form
         tips.SetToolTip(star, "Save this site (Ctrl+D)");
         star.Click += (o, e) => ToggleSaved();
 
-        // Address: a rounded pill with a borderless text box inside; the edge turns orange while typing.
-        var pill = new Pill { Dock = DockStyle.Fill, AutoWidth = false, Radius = px(18), Fill = Color.FromArgb(43, 43, 43),
-            HoverFill = Color.FromArgb(43, 43, 43), Border = Color.FromArgb(62, 62, 62), Cursor = Cursors.IBeam };
+        // Address: a rounded pill with a borderless text box inside; the edge lights up while typing.
+        var pill = new Pill { Dock = DockStyle.Fill, AutoWidth = false, Radius = px(18), Fill = Raised,
+            HoverFill = Raised, Border = Edge, Cursor = Cursors.IBeam };
         address.Font = new Font("Segoe UI", 10.5f);
         address.BorderStyle = BorderStyle.None;
-        address.BackColor = Color.FromArgb(43, 43, 43);
+        address.BackColor = Raised;
         address.ForeColor = Color.White;
         address.KeyDown += (o, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; Go(address.Text); } };
-        address.Enter += (o, e) => { pill.Border = Orange; pill.Invalidate(); BeginInvoke((Action)address.SelectAll); };
-        address.Leave += (o, e) => { pill.Border = Color.FromArgb(62, 62, 62); pill.Invalidate(); };
+        address.Enter += (o, e) => { pill.Border = VoltLight; pill.Invalidate(); BeginInvoke((Action)address.SelectAll); };
+        address.Leave += (o, e) => { pill.Border = Edge; pill.Invalidate(); };
         address.HandleCreated += (o, e) => SendMessage(address.Handle, 0x1501 /* EM_SETCUEBANNER */, (IntPtr)1, "Search or type a site");
         pill.Controls.Add(address);
         pill.Layout += (o, e) => {
@@ -239,6 +253,9 @@ class QwikBrowse : Form
         // With the player open, the window's close button just leaves the player (back to the page).
         FormClosing += (o, e) => {
             if (!playerOn || snapPath != null || web.CoreWebView2 == null || e.CloseReason != CloseReason.UserClosing) return;
+            // playerOn is only a hint from the page (any site can claim it), so a second close within 2 seconds always goes through.
+            if ((DateTime.UtcNow - lastCloseTry).TotalSeconds < 2) return;
+            lastCloseTry = DateTime.UtcNow;
             e.Cancel = true;
             playerOn = false;
             web.CoreWebView2.ExecuteScriptAsync("window.__qwikToggle && window.__qwikToggle()");
@@ -256,14 +273,28 @@ class QwikBrowse : Form
         string arch = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "win-arm64" : "win-x64";
         string loaderDir = Path.Combine(AppDir, "runtimes", arch, "native");
         if (File.Exists(Path.Combine(loaderDir, "WebView2Loader.dll"))) CoreWebView2Environment.SetLoaderDllFolderPath(loaderDir);
-        env = await CoreWebView2Environment.CreateAsync(null, ProfileDir, opts);
-        await web.EnsureCoreWebView2Async(env);
+        try {
+            env = await CoreWebView2Environment.CreateAsync(null, ProfileDir, opts);
+            await web.EnsureCoreWebView2Async(env);
+        } catch (Exception ex) {
+            if (ex is WebView2RuntimeNotFoundException || ex is DllNotFoundException || ex is BadImageFormatException) {
+                if (snapPath == null && MessageBox.Show(this, "QwikPlayer Web needs the Microsoft Edge WebView2 Runtime, which is not installed on this PC.\n\nOpen the download page now?",
+                    "QwikPlayer Web", MessageBoxButtons.YesNo, MessageBoxIcon.Information) == DialogResult.Yes) {
+                    try { System.Diagnostics.Process.Start("https://go.microsoft.com/fwlink/p/?LinkId=2124703"); } catch { }
+                }
+            } else if (snapPath == null) {
+                MessageBox.Show(this, "QwikPlayer Web could not start its browser engine.\n\n" + ex.Message, "QwikPlayer Web", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            Close();
+            return;
+        }
         var cw = web.CoreWebView2;
 
         cw.Settings.AreDefaultScriptDialogsEnabled = false;
         cw.Settings.IsStatusBarEnabled = false;
         cw.Settings.IsGeneralAutofillEnabled = false;
         cw.Settings.IsPasswordAutosaveEnabled = false;
+        cw.Settings.AreHostObjectsAllowed = false;   // never expose host objects to web pages
 
         cw.AddWebResourceRequestedFilter("*", CoreWebView2WebResourceContext.All);
         cw.WebResourceRequested += OnRequest;
@@ -277,11 +308,12 @@ class QwikBrowse : Form
         cw.SourceChanged += (o, e) => { address.Text = cw.Source.StartsWith(Home) ? "" : cw.Source; playerOn = false; UpdateStar(); };
         cw.DocumentTitleChanged += (o, e) => { Text = cw.Source.StartsWith(Home) ? "QwikPlayer Web" : cw.DocumentTitle + " - QwikPlayer Web"; AddHistory(cw.Source, cw.DocumentTitle); };
         cw.WebMessageReceived += OnWebMessage;
-        Directory.CreateDirectory(StartDir);
-        cw.SetVirtualHostNameToFolderMapping("qwik.home", StartDir, CoreWebView2HostResourceAccessKind.Allow);
+        try { Directory.CreateDirectory(StartDir); } catch (IOException) { } catch (UnauthorizedAccessException) { }
+        // DenyCors: the start page opens as a top-level page, but other sites cannot fetch it (it lists saved sites and history).
+        cw.SetVirtualHostNameToFolderMapping("qwik.home", StartDir, CoreWebView2HostResourceAccessKind.DenyCors);
         cw.ContainsFullScreenElementChanged += (o, e) => SetFullscreen(cw.ContainsFullScreenElement);
         await cw.AddScriptToExecuteOnDocumentCreatedAsync(GuardJs);
-        playerScriptId = await cw.AddScriptToExecuteOnDocumentCreatedAsync(File.ReadAllText(Path.Combine(AppDir, "qwik-player.js")));
+        try { playerScriptId = await cw.AddScriptToExecuteOnDocumentCreatedAsync(File.ReadAllText(Path.Combine(AppDir, "qwik-player.js"))); } catch (IOException) { }
         WatchLiveFiles();
 
         Go(url);
@@ -408,8 +440,12 @@ class QwikBrowse : Form
 
     void SaveLibrary()
     {
-        Directory.CreateDirectory(ProfileDir);
-        File.WriteAllText(LibraryFile, new JavaScriptSerializer().Serialize(lib));
+        try {
+            Directory.CreateDirectory(ProfileDir);
+            string tmp = LibraryFile + ".tmp";
+            File.WriteAllText(tmp, new JavaScriptSerializer().Serialize(lib));
+            if (File.Exists(LibraryFile)) File.Replace(tmp, LibraryFile, null); else File.Move(tmp, LibraryFile);
+        } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 
     static bool IsWeb(string url) { return url != null && url.StartsWith("http") && !url.StartsWith(Home); }
@@ -437,17 +473,19 @@ class QwikBrowse : Form
     {
         bool saved = web.CoreWebView2 != null && lib.Saved.Any(x => x.Url == web.CoreWebView2.Source);
         star.Glyph = saved ? "" : "";
-        star.ForeColor = saved ? Orange : Color.White;
+        star.ForeColor = saved ? Ember : Color.White;
         star.Invalidate();
     }
 
     void OnWebMessage(object sender, CoreWebView2WebMessageReceivedEventArgs e)
     {
-        string msg;
+        string msg, src = e.Source ?? "";
         try { msg = e.TryGetWebMessageAsString(); } catch { return; }
+        // Only the app's own start page (https://qwik.home/) may change saved sites or history; any other page can only send the player hints.
+        bool fromHome = src == "https://qwik.home" || src.StartsWith("https://qwik.home/");
         if (msg == "player:on") playerOn = true;
         else if (msg == "player:off") playerOn = false;
-        else if (e.Source.StartsWith(Home)) {   // start page actions
+        else if (fromHome) {   // start page actions
             if (msg.StartsWith("unsave:")) lib.Saved.RemoveAll(x => x.Url == msg.Substring(7));
             else if (msg.StartsWith("forget:")) lib.History.RemoveAll(x => x.Url == msg.Substring(7));
             else if (msg == "clear-history") lib.History.Clear();
@@ -489,12 +527,16 @@ class QwikBrowse : Form
             "<span class=rt>" + Esc(x.Title) + "<small>" + Esc(HostOf(x.Url)) + "</small></span><span class=ago>" + Ago(x.Time) + "</span>" +
             "<button class=x title=Forget data-m=\"forget:" + Esc(x.Url) + "\">✕</button></a>"));
         // The page itself lives in start.html next to the app (live-editable); the app fills in the lists.
-        string html = File.ReadAllText(Path.Combine(AppDir, "start.html"))
+        string html;
+        try { html = File.ReadAllText(Path.Combine(AppDir, "start.html")); } catch (IOException) { return; }
+        html = html
             .Replace("{{TILES}}", tiles)
             .Replace("{{CLEAR}}", lib.History.Count > 0 ? "<a data-m=clear-history>Clear</a>" : "")
             .Replace("{{ROWS}}", rows.Length > 0 ? rows : "<div class=empty>Sites you open will show up here.</div>");
-        Directory.CreateDirectory(StartDir);
-        File.WriteAllText(Path.Combine(StartDir, "index.html"), html);
+        try {
+            Directory.CreateDirectory(StartDir);
+            File.WriteAllText(Path.Combine(StartDir, "index.html"), html);
+        } catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
 
     void Blocked()
@@ -532,7 +574,7 @@ class Pill : Control
 {
     public string Glyph = "";
     public Font IconFont;
-    public Color Fill = Color.Transparent, HoverFill = Color.FromArgb(52, 52, 52), Border = Color.Transparent;
+    public Color Fill = Color.Transparent, HoverFill = Color.FromArgb(53, 47, 74), Border = Color.Transparent;
     public int Radius, PadX;
     public bool AutoWidth = true;
     bool hover;

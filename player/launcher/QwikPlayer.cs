@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -79,7 +80,8 @@ static class Mpv
 class QwikPlayer : Form
 {
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool SetDllDirectory(string path);
-    [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
+    [DllImport("user32.dll")] static extern bool SetProcessDPIAware();   // fallback only: app.manifest (per-monitor v2) wins when present
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern IntPtr LoadLibrary(string path);
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr h, int attr, ref int value, int size);
 
     static readonly string AppDir = AppDomain.CurrentDomain.BaseDirectory;
@@ -104,16 +106,87 @@ class QwikPlayer : Form
     bool cursorHidden; Point lastMouse;
     void ShowCursor() { cursorTimer.Stop(); cursorTimer.Start(); if (cursorHidden) { cursorHidden = false; Cursor.Show(); } }
 
-    [STAThread]
-    static void Main(string[] args)
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    static bool ProcessIsArm64() { return RuntimeInformation.ProcessArchitecture == Architecture.Arm64; }   // needs .NET 4.7.1
+
+    static bool IsArm64()
     {
-        // First of all: settle the data folder (moves the pre-rename one on the first run, see Library.ResolveDataDir).
-        GC.KeepAlive(Library.DataDir);
-        SetProcessDPIAware();
-        // One build for x64 and Windows on ARM: load the libmpv that matches this process.
-        SetDllDirectory(Path.Combine(AppDir, "libmpv", RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "arm64" : "x64"));
-        Application.EnableVisualStyles();
-        Application.Run(new QwikPlayer(args));
+        try { return ProcessIsArm64(); } catch (Exception) { return false; }
+    }
+
+    static string CrashLog()
+    {
+        string dir;
+        try { dir = Library.DataDir; } catch (Exception) { dir = Path.GetTempPath(); }
+        return Path.Combine(dir, "crash.log");
+    }
+
+    // Writes what went wrong to crash.log in the data folder (never throws, never grows past ~256 KB).
+    static void LogCrash(string where, Exception ex)
+    {
+        try {
+            string file = CrashLog();
+            Directory.CreateDirectory(Path.GetDirectoryName(file));
+            if (File.Exists(file) && new FileInfo(file).Length > 256 * 1024) return;
+            File.AppendAllText(file, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + " [" + where + "] " + (ex == null ? "(unknown error)" : ex.ToString()) + "\r\n\r\n");
+        } catch (Exception) { }
+    }
+
+    static void Fatal(string message)
+    {
+        try { MessageBox.Show(message, "QwikPlayer", MessageBoxButtons.OK, MessageBoxIcon.Error); } catch (Exception) { }
+    }
+
+    [STAThread]
+    static int Main(string[] args)
+    {
+        try {
+            Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
+            // A UI-thread error is logged and the player carries on (as the old Continue button did); startup errors below end the run.
+            Application.ThreadException += (o, e) => LogCrash("UI thread", e.Exception);
+            AppDomain.CurrentDomain.UnhandledException += (o, e) => {
+                Exception ex = e.ExceptionObject as Exception;
+                LogCrash("unhandled", ex);
+                Fatal("QwikPlayer hit an unexpected error and has to close.\n\n" + (ex == null ? "" : ex.Message) + "\n\nDetails were saved to:\n" + CrashLog());
+            };
+            AppDomain.CurrentDomain.ProcessExit += (o, e) => Library.KillChildren();   // no ffmpeg left running after the player
+            Application.EnableVisualStyles();
+            if (!Environment.Is64BitProcess) {
+                Fatal("QwikPlayer needs 64-bit Windows 10 or later (x64 or ARM64).");
+                return 1;
+            }
+            // First of all: settle the data folder (moves the pre-rename one on the first run, see Library.ResolveDataDir).
+            GC.KeepAlive(Library.DataDir);
+            SetProcessDPIAware();
+            // Command-line files become absolute while the working directory is still the caller's; after that the process
+            // lives in the app folder, so nothing it starts can be hijacked from a folder full of videos.
+            for (int i = 0; i < args.Length; i++)
+                if (args[i].IndexOf("://", StringComparison.Ordinal) < 0) args[i] = FullPath(args[i]);
+            try { Environment.CurrentDirectory = AppDir; } catch (Exception) { }
+            // One build for x64 and Windows on ARM: load the libmpv that matches this process.
+            string mpvDir = Path.Combine(AppDir, "libmpv", IsArm64() ? "arm64" : "x64");
+            SetDllDirectory(mpvDir);
+            string mpvDll = Path.Combine(mpvDir, "libmpv-2.dll");
+            if (!File.Exists(mpvDll)) {
+                Fatal("QwikPlayer can't find its video engine:\n" + mpvDll + "\n\nReinstall QwikPlayer, or copy the whole QwikPlayer folder, not just the .exe.");
+                return 1;
+            }
+            if (LoadLibrary(mpvDll) == IntPtr.Zero) {
+                Fatal("QwikPlayer's video engine (libmpv-2.dll) could not be loaded (Windows error " + Marshal.GetLastWin32Error() + ").\n\nThe file may be damaged or built for a different processor. Reinstall QwikPlayer.");
+                return 1;
+            }
+            Application.Run(new QwikPlayer(args));
+            return 0;
+        } catch (Exception ex) {
+            LogCrash("startup", ex);
+            Fatal("QwikPlayer could not start.\n\n" + ex.Message + "\n\nDetails were saved to:\n" + CrashLog());
+            return 1;
+        }
+    }
+
+    static string FullPath(string p)
+    {
+        try { return Path.GetFullPath(p); } catch (Exception) { return p; }   // too long, invalid characters: keep what mpv was given
     }
 
     QwikPlayer(string[] files)
@@ -122,6 +195,7 @@ class QwikPlayer : Form
         string ico = Path.Combine(AppDir, "qwikplayer.ico");
         if (File.Exists(ico)) Icon = new Icon(ico);
         BackColor = Color.Black;
+        AutoScaleMode = AutoScaleMode.None;   // the window is DPI aware (manifest): sizes below are real pixels, nothing is scaled twice
         StartPosition = FormStartPosition.CenterScreen;
         var area = Screen.PrimaryScreen.WorkingArea;
         Size = new Size(area.Width * 8 / 10, area.Height * 8 / 10);
@@ -130,7 +204,8 @@ class QwikPlayer : Form
 
         DragEnter += (o, e) => e.Effect = e.Data.GetDataPresent(DataFormats.FileDrop) ? DragDropEffects.Copy : DragDropEffects.None;
         DragDrop += (o, e) => {
-            var dropped = (string[])e.Data.GetData(DataFormats.FileDrop);
+            var dropped = e.Data.GetData(DataFormats.FileDrop) as string[];
+            if (mpv == IntPtr.Zero || dropped == null) return;   // shutting down or reloading
             for (int i = 0; i < dropped.Length; i++) Mpv.Command(mpv, "loadfile", dropped[i], i == 0 ? "replace" : "append");
         };
         Controls.Add(lib);
@@ -153,16 +228,20 @@ class QwikPlayer : Form
         Library.Ffmpeg = Path.Combine(AppDir, "alass", "bin", "ffmpeg.exe");
         Intros.Ffmpeg = Library.Ffmpeg;
         // Skip Intro data arrives in the background; tell skip-intro.lua to re-read it.
-        Intros.Updated += changed => { if (IsHandleCreated && !closing) BeginInvoke((Action)(() => { if (mpv != IntPtr.Zero) Mpv.Command(mpv, "script-message", "intros-updated"); })); };
-        Library.ThumbReady += key => { if (IsHandleCreated) BeginInvoke((Action)(() => SendThumb(key))); };
+        // The path is passed along so the script only re-reads when the episode that is playing changed.
+        Intros.Updated += changed => { try { if (IsHandleCreated && !closing) BeginInvoke((Action)(() => { if (mpv != IntPtr.Zero) Mpv.Command(mpv, "script-message", "intros-updated", changed ?? ""); })); } catch (InvalidOperationException) { } };
+        Library.ThumbReady += key => { try { if (IsHandleCreated) BeginInvoke((Action)(() => SendThumb(key))); } catch (InvalidOperationException) { } };
         historyTimer.Tick += (o, e) => RecordProgress();
         Activated += (o, e) => { if (!lib.Visible) FocusVideo(); };   // coming back with Alt+Tab
         // WebView2 takes keyboard focus when its page loads, even while hidden behind a playing video.
         lib.GotFocus += (o, e) => { if (!lib.Visible) BeginInvoke((Action)FocusVideo); };
         historyTimer.Start();
-        Shown += (o, e) => { InitLibrary(); Start(files.ToList(), null, false); };
+        // With no file the library is the first thing on screen, so its WebView2 starts at once (as before). When a file is
+        // opened directly the WebView2 is only created when the library is first shown (ShowLibrary).
+        Shown += (o, e) => { if (files.Length == 0) StartLibrary(); Start(files.ToList(), null, false); Rescan(); };
         FormClosing += (o, e) => {
             try { RecordProgress(); Library.SaveHistory(); } catch { }
+            Library.KillChildren();   // thumbnail / intro ffmpeg must not outlive the window
             if (mpv == IntPtr.Zero || closing) return;
             e.Cancel = true;   // let mpv save the position and shut down first; the event loop closes us
             closing = true;
@@ -187,7 +266,11 @@ class QwikPlayer : Form
 
     void Start(List<string> files, string startAt, bool paused)
     {
-        mpv = Mpv.mpv_create();
+        IntPtr created;
+        try { created = Mpv.mpv_create(); }
+        catch (Exception ex) { LogCrash("mpv_create", ex); StartFailed("QwikPlayer's video engine (libmpv) could not be started: " + ex.Message); return; }
+        if (created == IntPtr.Zero) { StartFailed("QwikPlayer's video engine (libmpv) could not be created."); return; }
+        mpv = created;
         Action<string, string> opt = (k, v) => Mpv.mpv_set_option_string(mpv, Mpv.U8(k), Mpv.U8(v));
         opt("config-dir", ConfigDir);
         opt("config", "yes");
@@ -201,20 +284,36 @@ class QwikPlayer : Form
         opt("idle", "yes");              // stay open with the QwikPlayer start screen when nothing plays
         opt("border", "yes");            // the app's own title bar replaces uosc's window buttons
         opt("terminal", "no");
-        if (startAt != null) opt("start", startAt);
-        if (paused) opt("pause", "yes");
-        Mpv.mpv_initialize(mpv);
+        int rc = Mpv.mpv_initialize(mpv);
+        if (rc < 0) {
+            mpv = IntPtr.Zero;
+            try { Mpv.mpv_terminate_destroy(created); } catch (Exception) { }
+            StartFailed("QwikPlayer's video engine (libmpv) failed to initialise (error " + rc + ").\n\nIf this keeps happening, reinstall QwikPlayer or update your graphics driver.");
+            return;
+        }
         Mpv.mpv_observe_property(mpv, 1, Mpv.U8("media-title"), Mpv.FORMAT_STRING);
         Mpv.mpv_observe_property(mpv, 2, Mpv.U8("fullscreen"), Mpv.FORMAT_FLAG);
         Mpv.mpv_observe_property(mpv, 3, Mpv.U8("window-maximized"), Mpv.FORMAT_FLAG);
         Mpv.mpv_observe_property(mpv, 4, Mpv.U8("window-minimized"), Mpv.FORMAT_FLAG);
         Mpv.mpv_observe_property(mpv, 5, Mpv.U8("idle-active"), Mpv.FORMAT_FLAG);
-        for (int i = 0; i < files.Count; i++) Mpv.Command(mpv, "loadfile", files[i], i == 0 ? "replace" : "append");
+        // A live reload resumes through per-file options on the first file, so later files don't inherit the start time or pause.
+        string first = (startAt != null ? "start=" + startAt : "") + (startAt != null && paused ? "," : "") + (paused ? "pause=yes" : "");
+        for (int i = 0; i < files.Count; i++) {
+            if (i == 0 && first.Length > 0) Mpv.Command(mpv, "loadfile", files[i], "replace", "-1", first);
+            else Mpv.Command(mpv, "loadfile", files[i], i == 0 ? "replace" : "append");
+        }
         if (startAt != null) ThreadPool.QueueUserWorkItem(_ => { Thread.Sleep(1200); var h = mpv; if (h != IntPtr.Zero) Mpv.Command(h, "show-text", "✓ QwikPlayer updated", "2000"); });
 
         IntPtr ctx = mpv;
         new Thread(() => EventLoop(ctx)) { IsBackground = true, Name = "mpv events" }.Start();
         FocusVideo();
+    }
+
+    void StartFailed(string message)
+    {
+        Fatal(message);
+        closing = true;
+        Close();
     }
 
     void EventLoop(IntPtr ctx)
@@ -223,12 +322,15 @@ class QwikPlayer : Form
             var ev = (Mpv.Event)Marshal.PtrToStructure(Mpv.mpv_wait_event(ctx, -1), typeof(Mpv.Event));
             if (ev.id == Mpv.EVENT_SHUTDOWN) {
                 // Stop every other caller (timers, key and mouse forwarding) before the handle is destroyed.
-                Invoke((Action)(() => { if (mpv == ctx) mpv = IntPtr.Zero; }));
+                try { Invoke((Action)(() => { if (mpv == ctx) mpv = IntPtr.Zero; })); } catch (InvalidOperationException) { }
                 Mpv.mpv_terminate_destroy(ctx);
-                BeginInvoke((Action)(() => {
-                    if (restarting) { restarting = false; Start(resumeFile == null ? new List<string>() : new List<string> { resumeFile }, resumeAt, resumePaused); }
-                    else { closing = true; Close(); }
-                }));
+                try {
+                    BeginInvoke((Action)(() => {
+                        // A close during a live reload wins over the reload.
+                        if (closing || !restarting) { closing = true; Close(); }
+                        else { restarting = false; Start(resumeFile == null ? new List<string>() : new List<string> { resumeFile }, resumeAt, resumePaused); }
+                    }));
+                } catch (InvalidOperationException) { }
                 return;
             }
             if (ev.id != Mpv.EVENT_PROPERTY_CHANGE || ev.data == IntPtr.Zero) continue;
@@ -237,7 +339,7 @@ class QwikPlayer : Form
             string name = Mpv.FromU8(prop.name);
             string str = prop.format == Mpv.FORMAT_STRING ? Mpv.FromU8(Marshal.ReadIntPtr(prop.data)) : null;
             bool flag = prop.format == Mpv.FORMAT_FLAG && Marshal.ReadInt32(prop.data) != 0;
-            BeginInvoke((Action)(() => OnProperty(name, str, flag)));
+            try { BeginInvoke((Action)(() => OnProperty(name, str, flag))); } catch (InvalidOperationException) { return; }   // window already gone
         }
     }
 
@@ -270,18 +372,29 @@ class QwikPlayer : Form
 
     // ---------- library ----------
 
+    bool libStarted;
+
+    // Creates the WebView2 library once, the first time it is needed.
+    void StartLibrary()
+    {
+        if (libStarted) return;
+        libStarted = true;
+        InitLibrary();
+    }
+
     async void InitLibrary()
     {
         string page = Path.Combine(AppDir, "library");
         if (!Directory.Exists(page)) return;
         try {
-            string arch = RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "win-arm64" : "win-x64";
+            string arch = IsArm64() ? "win-arm64" : "win-x64";
             string loader = Path.Combine(AppDir, "runtimes", arch, "native");
             if (File.Exists(Path.Combine(loader, "WebView2Loader.dll"))) CoreWebView2Environment.SetLoaderDllFolderPath(loader);
             var env = await CoreWebView2Environment.CreateAsync(null, Path.Combine(Library.DataDir, "webview"));
             await lib.EnsureCoreWebView2Async(env);
         } catch (Exception) { return; }   // no WebView2 runtime: the player still works, just without the library
-        var cw = lib.CoreWebView2;
+        CoreWebView2 cw = lib.CoreWebView2;
+        if (cw == null) return;
         cw.Settings.AreDefaultContextMenusEnabled = false;
         cw.Settings.AreDevToolsEnabled = false;
         cw.Settings.IsZoomControlEnabled = false;
@@ -294,12 +407,12 @@ class QwikPlayer : Form
         // Live editing of the page: reload when library\ changes.
         var w = new FileSystemWatcher(page) { EnableRaisingEvents = true, SynchronizingObject = this, NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName };
         w.Changed += (o, e) => cw.Reload();
-        Rescan();
     }
 
     void ShowLibrary(bool show)
     {
-        if (show) { Text = "QwikPlayer"; ShowCursor(); cursorTimer.Stop(); }
+        Library.Paused = !show;   // thumbnails are only made while the library is on screen
+        if (show) { Text = "QwikPlayer"; ShowCursor(); cursorTimer.Stop(); StartLibrary(); }
         if (!libReady && show) { lib.Visible = lib.Enabled = lib.CoreWebView2 != null; return; }
         lib.Visible = show;
         lib.Enabled = show;   // a disabled window can't hold keyboard focus, so keys reach the video
@@ -339,9 +452,18 @@ class QwikPlayer : Form
             var state = new byte[256];
             if (shift) state[0x10] = 0x80;
             var sb = new StringBuilder(8);
-            if (ToUnicode((uint)key, 0, state, sb, sb.Capacity, 0) != 1) return null;
-            name = sb.ToString();
-            if (name == "#") name = "SHARP";
+            int got = ToUnicode((uint)key, 0, state, sb, sb.Capacity, 0);
+            bool letter = key >= Keys.A && key <= Keys.Z, digit = key >= Keys.D0 && key <= Keys.D9;
+            if ((letter || digit) && (got != 1 || sb[0] > 0x7F)) {
+                // Non-Latin layout (Russian, Greek, Hindi, Arabic...): shortcuts follow the key's US-layout letter or digit.
+                name = letter ? ((char)((shift ? 'A' : 'a') + (key - Keys.A))).ToString()
+                              : (shift ? ")!@#$%^&*(" : "0123456789")[key - Keys.D0].ToString();
+                if (name == "#") name = "SHARP";
+            } else {
+                if (got != 1) return null;
+                name = sb.ToString();
+                if (name == "#") name = "SHARP";
+            }
             isChar = true;
         }
         return (ctrl ? "Ctrl+" : "") + (alt ? "Alt+" : "") + (shift && !isChar ? "Shift+" : "") + name;
@@ -407,7 +529,9 @@ class QwikPlayer : Form
         scanning = true;
         ThreadPool.QueueUserWorkItem(_ => {
             try { Library.Scan(); } catch { }
-            BeginInvoke((Action)(() => { scanning = false; SendState(); EnsureSeriesPlaylist(); Library.StartThumbnails(); }));
+            try {
+                BeginInvoke((Action)(() => { scanning = false; SendState(); EnsureSeriesPlaylist(); if (lib.Visible) Library.StartThumbnails(); }));
+            } catch (InvalidOperationException) { }   // window already gone
         });
     }
 
@@ -422,7 +546,7 @@ class QwikPlayer : Form
     void SendThumb(string key)
     {
         double d;
-        Library.Durations.TryGetValue(key, out d);
+        Library.TryGetDuration(key, out d);
         Post(new Dictionary<string, object> { { "type", "thumb" }, { "key", key }, { "dur", d } });
     }
 
@@ -432,6 +556,7 @@ class QwikPlayer : Form
     {
         Dictionary<string, object> m;
         try { m = json.Deserialize<Dictionary<string, object>>(e.WebMessageAsJson); } catch { return; }
+        if (m == null) return;
         string cmd = m.ContainsKey("cmd") ? m["cmd"] as string : null;
         string path = m.ContainsKey("path") ? m["path"] as string : null;
         switch (cmd) {
@@ -454,7 +579,7 @@ class QwikPlayer : Form
                 }
                 break;
             case "openFile":
-                using (var dlg = new OpenFileDialog { Title = "Open a video", Filter = "Videos|*.mkv;*.mp4;*.avi;*.webm;*.mov;*.m4v;*.wmv;*.ts;*.flv;*.mpg|All files|*.*" }) {
+                using (var dlg = new OpenFileDialog { Title = "Open a video", RestoreDirectory = true, Filter = "Videos|*.mkv;*.mp4;*.avi;*.webm;*.mov;*.m4v;*.wmv;*.ts;*.flv;*.mpg|All files|*.*" }) {
                     if (dlg.ShowDialog(this) == DialogResult.OK) PlayFromLibrary(dlg.FileName);
                 }
                 break;
@@ -478,10 +603,11 @@ class QwikPlayer : Form
     {
         var item = Library.Find(path);
         if (item == null || item.kind != "episode") return false;
-        var eps = Library.ShowEpisodes(item.showId);
+        var eps = Library.ShowEpisodes(item.showId, path);
         int at = eps.FindIndex(x => string.Equals(x.path, path, StringComparison.OrdinalIgnoreCase));
         if (at < 0 || eps.Count < 2) return false;
-        Intros.Analyse(eps.Select(x => x.path).ToList(), path);   // find intros/credits for Skip Intro
+        // Find intros/credits for Skip Intro: the playing season only (the rest is analysed when it is played).
+        Intros.Analyse(eps.Where(x => x.season == item.season).Select(x => x.path).ToList(), path);
         for (int i = 0; i < at; i++) Mpv.Command(mpv, "loadfile", eps[i].path, "insert-at", i.ToString(), "start=0");
         for (int i = at + 1; i < eps.Count; i++)
             Mpv.Command(mpv, "loadfile", eps[i].path, "append", "-1", "start=" + Library.ResumeAt(eps[i].path).ToString("0.###", CultureInfo.InvariantCulture));
@@ -494,7 +620,7 @@ class QwikPlayer : Form
         if (mpv == IntPtr.Zero || Mpv.Get(mpv, "playlist-count") != "1") return;
         string path = Mpv.Get(mpv, "path");
         if (string.IsNullOrEmpty(path) || path.Contains("://")) return;
-        AddSeriesAround(Path.GetFullPath(path));
+        AddSeriesAround(FullPath(path));
     }
 
     // History: sample the playing file's position every 2 s.
@@ -505,7 +631,7 @@ class QwikPlayer : Form
         double pos, dur;
         if (path == null || !double.TryParse(Mpv.Get(mpv, "time-pos") ?? "", NumberStyles.Float, CultureInfo.InvariantCulture, out pos)
             || !double.TryParse(Mpv.Get(mpv, "duration") ?? "", NumberStyles.Float, CultureInfo.InvariantCulture, out dur)) return;
-        if (!path.Contains("://")) path = Path.GetFullPath(path);
+        if (!path.Contains("://")) path = FullPath(path);
         Library.Record(path, pos, dur);
     }
 

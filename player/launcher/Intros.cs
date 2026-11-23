@@ -41,11 +41,26 @@ static class Intros
 
     static void Save()
     {
-        string t; lock (Lock) t = Json.Serialize(cache);
-        try { File.WriteAllText(File_, t); } catch { }
+        // Another player instance may have analysed other episodes meanwhile: keep what it found (by presence), then swap the file in atomically.
+        Dictionary<string, IntroInfo> disk = null;
+        try { disk = Json.Deserialize<Dictionary<string, IntroInfo>>(File.ReadAllText(File_)); } catch { }
+        string t;
+        lock (Lock) {
+            if (disk != null) foreach (var kv in disk) if (kv.Value != null && kv.Value.v == Version && !cache.ContainsKey(kv.Key)) cache[kv.Key] = kv.Value;
+            t = Json.Serialize(cache);
+        }
+        Library.WriteAtomic(File_, t);
     }
 
-    static bool Known(string p) { IntroInfo i; lock (Lock) { LoadCache(); return cache.TryGetValue(p, out i) && i.v == Version; } }
+    static bool Known(string p) { IntroInfo i; lock (Lock) { LoadCache(); return cache.TryGetValue(p, out i) && i != null && i.v == Version; } }
+
+    // Where the end credits of this file start (seconds), or -1 when unknown. Only reads what is already in memory.
+    public static double CreditsStart(string path)
+    {
+        IntroInfo i;
+        lock (Lock) { if (cache == null || !cache.TryGetValue(path, out i) || i == null) return -1; }
+        return i.creditsStart;
+    }
 
     // Analyse a show's episodes (in order), starting around `current` so the playing one is ready first.
     public static void Analyse(List<string> episodes, string current)
@@ -66,22 +81,34 @@ static class Intros
         while (true) {
             List<string> job;
             lock (Lock) { if (jobs.Count == 0) { worker = null; return; } job = jobs.Dequeue(); }
+            try { RunJob(job); } catch (Exception) { }   // a bad file must not kill the worker or the player
+        }
+    }
+
+    static void RunJob(List<string> job)
+    {
+        {
             string current = job[job.Count - 1]; job.RemoveAt(job.Count - 1);
             int at = Math.Max(0, job.FindIndex(p => string.Equals(p, current, StringComparison.OrdinalIgnoreCase)));
             // current first, then the ones after it, then the ones before
             var order = Enumerable.Range(at, job.Count - at).Concat(Enumerable.Range(0, at)).ToList();
             var prints = new Dictionary<int, Prints>();
             Func<int, Prints> get = i => { Prints p; if (!prints.TryGetValue(i, out p)) { p = Fingerprint(job[i]); prints[i] = p; } return p; };
+            int analysed = 0;
             foreach (int i in order) {
                 if (Known(job[i])) continue;
+                // Be gentle with the machine: after the playing episode and its neighbour, rest between episodes.
+                if (analysed++ >= 2) Thread.Sleep(3000);
                 var me = get(i);
                 if (me == null) continue;
+                int compared = 0;
                 var info = new IntroInfo { dur = me.dur };
                 // compare with the next episode (or the previous one for the last), then the other side if needed
                 foreach (int j in new[] { i + 1, i - 1, i + 2, i - 2 }) {
                     if (j < 0 || j >= job.Count) continue;
                     var other = get(j);
                     if (other == null) continue;
+                    compared++;
                     if (info.introStart < 0) {
                         var m = Match(me.head, other.head, 15, 130);
                         if (m != null) { info.introStart = m.Item1 * Step; info.introEnd = m.Item2 * Step; }
@@ -93,6 +120,7 @@ static class Intros
                     }
                     if (info.introStart >= 0 && info.creditsStart >= 0) break;
                 }
+                if (compared == 0) continue;   // nothing to compare with (decode failed or timed out): don't cache "no intro"
                 lock (Lock) cache[job[i]] = info;
                 Save();
                 var h = Updated; if (h != null) h(job[i]);
@@ -139,15 +167,29 @@ static class Intros
         dur = 0;
         string ss = start.HasValue ? string.Format(CultureInfo.InvariantCulture, "-ss {0:0.###} ", start.Value) : "";
         var psi = new ProcessStartInfo(Ffmpeg, string.Format(CultureInfo.InvariantCulture,
-            "-hide_banner -nostdin {0}-i \"{1}\" -t {2:0.###} -vn -sn -ac 1 -ar {3} -f s16le -", ss, path, length, Rate)) {
+            "-hide_banner -nostdin -threads 1 {0}-i \"{1}\" -t {2:0.###} -vn -sn -ac 1 -ar {3} -f s16le -", ss, path, length, Rate)) {
             UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        using (var p = Process.Start(psi)) {
+        lock (Library.FfmpegGate) {   // one ffmpeg at a time, shared with the thumbnail worker
+            var p = Library.StartFfmpeg(psi);
+            if (p == null) return null;
+            try { return DecodeFrom(p, out dur); }
+            finally { Library.Release(p); p.Dispose(); }
+        }
+    }
+
+    static short[] DecodeFrom(Process p, out double dur)
+    {
+        dur = 0;
+        bool timedOut = false;
+        // A stuck ffmpeg is killed after two minutes (stdout then ends and the copy below returns).
+        using (var killer = new System.Threading.Timer(_ => { timedOut = true; try { p.Kill(); } catch { } }, null, 120000, Timeout.Infinite)) {
             string err = null;
-            var errThread = new Thread(() => { err = p.StandardError.ReadToEnd(); }) { IsBackground = true };
+            var errThread = new Thread(() => { try { err = p.StandardError.ReadToEnd(); } catch { } }) { IsBackground = true };
             errThread.Start();
             var ms = new MemoryStream();
-            p.StandardOutput.BaseStream.CopyTo(ms);
+            try { p.StandardOutput.BaseStream.CopyTo(ms); } catch (IOException) { timedOut = true; }
             p.WaitForExit(); errThread.Join(5000);
+            if (timedOut) return null;
             var m = DurRx.Match(err ?? "");
             if (m.Success) dur = int.Parse(m.Groups[1].Value) * 3600 + int.Parse(m.Groups[2].Value) * 60 + double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture);
             var bytes = ms.ToArray();

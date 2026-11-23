@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="qp_bg">#0D0B14</color>
+    <color name="qp_surface">#181522</color>
+    <color name="qp_raised">#242033</color>
+    <color name="qp_text">#F5F2FB</color>
+    <color name="qp_muted">#A8A1BC</color>
+    <color name="qp_volt_light">#B9A0FF</color>
+</resources>

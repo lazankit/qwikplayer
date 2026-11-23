@@ -6,7 +6,7 @@ $out = "$PSScriptRoot\out"
 $pkg = "$out\qwikplayer"
 Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $pkg | Out-Null
-robocopy "$src\player\config" "$pkg\config" /E /NFL /NDL /NJH /NJS | Out-Null
+robocopy "$src\player\config" "$pkg\config" /E /XF ziggy-windows.exe ziggy-darwin /NFL /NDL /NJH /NJS | Out-Null
 Copy-Item "$PSScriptRoot\install.sh", "$PSScriptRoot\uninstall.sh" $pkg
 Copy-Item "$src\docs\qwikplayer-icon.png" "$pkg\qwikplayer.png"
 # Shell scripts must have Unix line endings to run.

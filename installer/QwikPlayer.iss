@@ -21,6 +21,8 @@ AppComments=Play More. Worry Less.
 DefaultDirName={%USERPROFILE}\QwikPlayer
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
+; Windows 10 1809 or later.
+MinVersion=10.0.17763
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputBaseFilename=QwikPlayerSetup
@@ -28,8 +30,9 @@ SetupIconFile=..\player\launcher\qwikplayer.ico
 UninstallDisplayIcon={app}\Player\QwikPlayer.exe
 UninstallDisplayName=QwikPlayer (Player + Web)
 WizardStyle=modern
-Compression=lzma2
+Compression=lzma2/ultra64
 SolidCompression=yes
+LZMAUseSeparateProcess=yes
 ChangesAssociations=yes
 CloseApplications=yes
 
@@ -38,6 +41,11 @@ Name: desktopicon; Description: "Create desktop shortcuts"; GroupDescription: "S
 Name: assoc; Description: "Offer QwikPlayer for video files (.mkv, .mp4, ...)"; GroupDescription: "Video files:"
 
 [InstallDelete]
+; Space freed on upgrade: the second ffmpeg copy, uosc's Linux/macOS helpers, libmpv for the other CPU.
+Type: filesandordirs; Name: "{app}\Player\alass\ffmpeg\bin"
+Type: files; Name: "{app}\Player\config\scripts\uosc\bin\ziggy-darwin"
+Type: files; Name: "{app}\Player\config\scripts\uosc\bin\ziggy-linux"
+Type: filesandordirs; Name: "{app}\Player\libmpv\arm64"; Check: not IsArm64
 ; Leftovers from the earlier hand-made setup
 Type: files; Name: "{userprograms}\Oranix.lnk"
 Type: files; Name: "{localappdata}\Oranix\Oranix.exe"
@@ -58,7 +66,10 @@ Type: files; Name: "{userdesktop}\Oranix Player.lnk"
 Type: files; Name: "{userdesktop}\Oranix Web.lnk"
 
 [Files]
-Source: "..\dist\Player\*"; DestDir: "{app}\Player"; Flags: recursesubdirs ignoreversion
+; libmpv: the ARM64 copy is installed only on ARM64 PCs (an x64 PC never loads it). ARM64 PCs keep both,
+; as before, because the player picks its DLL by the architecture of the process it runs as.
+Source: "..\dist\Player\*"; DestDir: "{app}\Player"; Excludes: "\libmpv\arm64\*"; Flags: recursesubdirs ignoreversion
+Source: "..\dist\Player\libmpv\arm64\*"; DestDir: "{app}\Player\libmpv\arm64"; Flags: ignoreversion; Check: IsArm64
 Source: "..\dist\Web\*"; DestDir: "{app}\Web"; Flags: recursesubdirs ignoreversion
 
 [Icons]
@@ -102,10 +113,35 @@ Filename: "{app}\Player\QwikPlayer.exe"; Description: "Open QwikPlayer"; Flags: 
 // Noted before [Registry] removes it: was the pre-rename file type (Oranix.video) registered on this PC?
 var OranixFileTypes: Boolean;
 
+function WebView2Installed(): Boolean;
+var pv: String;
+begin
+  pv := '';
+  if not RegQueryStringValue(HKLM32, 'SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', pv) then
+    if not RegQueryStringValue(HKCU, 'Software\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}', 'pv', pv) then
+      pv := '';
+  Result := (pv <> '') and (pv <> '0.0.0.0');
+end;
+
 function InitializeSetup(): Boolean;
+var rel: Cardinal; err: Integer;
 begin
   OranixFileTypes := RegKeyExists(HKEY_CURRENT_USER, 'Software\Classes\Oranix.video');
   Result := True;
+  // The apps are .NET Framework 4.8 programs (release 528040 or later). Windows 10 1903+ has it built in.
+  if not RegQueryDWordValue(HKLM, 'SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full', 'Release', rel) or (rel < 528040) then begin
+    SuppressibleMsgBox('QwikPlayer needs the Microsoft .NET Framework 4.8, which this PC does not have yet.' + #13#10#13#10 +
+      'Install it from https://go.microsoft.com/fwlink/?linkid=2088631 (or run Windows Update), then run this setup again.', mbError, MB_OK, IDOK);
+    Result := False;
+    exit;
+  end;
+  // Not fatal: the Player plays videos without it; only the library page and QwikPlayer Web need it.
+  if not WebView2Installed() then begin
+    if SuppressibleMsgBox('The Microsoft Edge WebView2 Runtime is not installed on this PC.' + #13#10#13#10 +
+      'QwikPlayer will still install and play videos, but the library page and QwikPlayer Web need the runtime. ' +
+      'Open the download page for the Evergreen bootstrapper now? (You can also install it after setup.)', mbInformation, MB_YESNO, IDNO) = IDYES then
+      ShellExec('open', 'https://go.microsoft.com/fwlink/p/?LinkId=2124703', '', '', SW_SHOWNORMAL, ewNoWait, err);
+  end;
 end;
 
 function HadOranixFileTypes(): Boolean;

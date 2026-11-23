@@ -49,7 +49,7 @@ import java.util.Set;
  */
 public class MainActivity extends Activity {
     static final String HOME = "https://qwik.home/index.html";
-    static final int CHARCOAL = 0xFF1F1F1F, ORANGE = 0xFFFF7A00, PEACH = 0xFFFFA94D;
+    static final int CHARCOAL = 0xFF181522, VOLT_LIGHT = 0xFFB9A0FF, EMBER = 0xFFFF8A2B;
 
     // Ad, pop-under and tracking networks; matched against the request host and its parents.
     static final Set<String> AD_HOSTS = new HashSet<>(Arrays.asList(
@@ -152,11 +152,11 @@ public class MainActivity extends Activity {
         address.setInputType(android.text.InputType.TYPE_TEXT_VARIATION_URI);
         address.setPadding(dp(16), 0, dp(16), 0);
         GradientDrawable pill = new GradientDrawable();
-        pill.setColor(0xFF2B2B2B);
+        pill.setColor(0xFF242033);
         pill.setCornerRadius(dp(22));
-        pill.setStroke(dp(1), 0xFF3E3E3E);
+        pill.setStroke(dp(1), 0xFF352F4A);
         address.setBackground(pill);
-        address.setOnFocusChangeListener((v, focused) -> pill.setStroke(dp(focused ? 2 : 1), focused ? ORANGE : 0xFF3E3E3E));
+        address.setOnFocusChangeListener((v, focused) -> pill.setStroke(dp(focused ? 2 : 1), focused ? VOLT_LIGHT : 0xFF352F4A));
         address.setOnEditorActionListener((v, action, event) -> {
             go(address.getText().toString());
             hideKeyboard();
@@ -171,7 +171,7 @@ public class MainActivity extends Activity {
         bar.addView(star, new LinearLayout.LayoutParams(dp(40), dp(44)));
 
         shield = new TextView(this);
-        shield.setTextColor(PEACH);
+        shield.setTextColor(EMBER);
         shield.setTextSize(12);
         shield.setGravity(Gravity.CENTER);
         shield.setPadding(dp(6), 0, 0, 0);
@@ -223,6 +223,8 @@ public class MainActivity extends Activity {
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
+        s.setAllowFileAccess(false);
+        s.setAllowContentAccess(false);
         s.setMediaPlaybackRequiresUserGesture(false);   // so Next/playlists keep playing
         s.setSupportMultipleWindows(true);              // ...and onCreateWindow refuses every popup
         s.setJavaScriptCanOpenWindowsAutomatically(false);
@@ -382,6 +384,11 @@ public class MainActivity extends Activity {
         String url = text.contains("://") ? text
             : (text.contains(".") && !text.contains(" ")) ? "https://" + text
             : "https://duckduckgo.com/?q=" + Uri.encode(text);
+        // Only http(s) may be loaded from the address bar or from another app's intent: content://, file://
+        // and javascript: URLs would run in (or read from) the page that is currently open.
+        String scheme = Uri.parse(url).getScheme();
+        if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https")))
+            url = "https://duckduckgo.com/?q=" + Uri.encode(text);
         web.loadUrl(url);
         web.requestFocus();
     }
@@ -494,7 +501,7 @@ public class MainActivity extends Activity {
         boolean on = false;
         for (int i = 0; url != null && i < saved.length(); i++) if (url.equals(saved.optJSONObject(i).optString("url"))) on = true;
         star.setText(on ? "★" : "☆");
-        star.setTextColor(on ? ORANGE : Color.WHITE);
+        star.setTextColor(on ? EMBER : Color.WHITE);
     }
 
     static String esc(String s) { return TextUtils.htmlEncode(s == null ? "" : s); }

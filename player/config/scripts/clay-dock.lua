@@ -1,6 +1,6 @@
 -- Clay + glass dock behind uosc's bottom controls: a translucent charcoal sheet with rounded top
 -- corners, a soft shadow lifting it off the video, a light top rim, an inner shine and a faint
--- orange glow. It follows uosc's own visibility (user-data/osc/margins) and fades with it.
+-- Volt glow. It follows uosc's own visibility (user-data/osc/margins) and fades with it.
 -- (mpv's OSD can't blur what's behind it, so "glass" here is translucency + highlights.)
 
 local ov = mp.create_osd_overlay("ass-events")
@@ -33,8 +33,8 @@ local function render()
   local out = {
     -- soft shadow rising above the sheet
     shape(0, top - math.floor(6 * s), w, dh, r, 0, "000000", a(0.55), string.format("\\blur%d", math.floor(26 * s))),
-    -- faint orange ambience under the controls
-    shape(math.floor(w * 0.2), top + math.floor(dh * 0.35), math.floor(w * 0.6), math.floor(dh * 0.5), r, r, "1409E5", a(0.10), string.format("\\blur%d", math.floor(40 * s))),
+    -- faint Volt ambience under the controls
+    shape(math.floor(w * 0.2), top + math.floor(dh * 0.35), math.floor(w * 0.6), math.floor(dh * 0.5), r, r, "FF3874", a(0.10), string.format("\\blur%d", math.floor(40 * s))),
     -- the glass body (smoky, see-through)
     shape(0, top, w, dh, r, 0, "2E2A28", a(0.68)),
     -- clay shine: soft light band across the upper part

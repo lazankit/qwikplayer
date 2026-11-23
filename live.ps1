@@ -17,7 +17,7 @@ if (!(Test-Path $InstallDir)) { throw "QwikPlayer isn't installed at $InstallDir
 if (!(Test-Path "$InstallDir\Player\QwikPlayer.exe")) {
   throw "The copy in $InstallDir is from before the rename to QwikPlayer. Run .\build.ps1 -Installer and install installer\Output\QwikPlayerSetup.exe first."
 }
-robocopy "$src\player\config" "$InstallDir\Player\config" /MIR /NFL /NDL /NJH /NJS | Out-Null
+robocopy "$src\player\config" "$InstallDir\Player\config" /MIR /XF ziggy-darwin ziggy-linux /NFL /NDL /NJH /NJS | Out-Null
 robocopy "$src\player\library" "$InstallDir\Player\library" /MIR /NFL /NDL /NJH /NJS | Out-Null
 foreach ($f in 'qwik-player.js', 'start.html') {
   $from = "$src\web\$f"; $to = "$InstallDir\Web\$f"

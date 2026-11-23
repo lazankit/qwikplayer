@@ -1,0 +1,233 @@
+{
+  "name": "QwikPlayer brand draft A: Speed + Play",
+  "gradient": {
+    "name": "Afterburn",
+    "stops": [
+      {
+        "offset": 0,
+        "hex": "#FF8A2B"
+      },
+      {
+        "offset": 0.44,
+        "hex": "#FF2D87"
+      },
+      {
+        "offset": 1,
+        "hex": "#7438FF"
+      }
+    ],
+    "icon": "top-left (Ember) to bottom-right (Volt), about 130 degrees",
+    "css_icon": "linear-gradient(130deg, #FF8A2B 0%, #FF2D87 44%, #7438FF 100%)",
+    "css_seekbar": "linear-gradient(90deg, #7438FF 0%, #FF2D87 55%, #FF8A2B 100%)",
+    "use": "App icon background, played part of the seek bar (Volt at 0:00, Ember at the playhead), thumbnail progress, start-screen glow, the two triangles of the wordmark. Never behind body text."
+  },
+  "colors": [
+    {
+      "role": "primary accent",
+      "name": "Volt",
+      "hex": "#7438FF",
+      "text_on_it": "#FFFFFF",
+      "contrast": {
+        "white_text": 5.6,
+        "on_background": 3.49,
+        "on_paper": 5.31
+      },
+      "use": "Primary buttons (Open file, Play), selected speed/quality pill, focus ring, selected library card outline, Android colorPrimary, links on the light web theme."
+    },
+    {
+      "role": "secondary accent",
+      "name": "Ember",
+      "hex": "#FF8A2B",
+      "text_on_it": "#15121D",
+      "contrast": {
+        "ink_text": 7.85,
+        "on_background": 8.3
+      },
+      "use": "Secondary call to action (Resume), seek-bar playhead glow, chapter markers, download/cast highlights, Android colorSecondary."
+    },
+    {
+      "role": "gradient middle",
+      "name": "Pulse",
+      "hex": "#FF2D87",
+      "text_on_it": "#15121D",
+      "contrast": {
+        "ink_text": 5.26,
+        "on_background": 5.56
+      },
+      "use": "Gradient only, plus small live/recording dots. Not for text or large fills (too close to Error)."
+    },
+    {
+      "role": "logo highlight",
+      "name": "Spark",
+      "hex": "#FFD84A",
+      "text_on_it": "#15121D",
+      "contrast": {
+        "ink_text": 13.35,
+        "on_background": 14.11
+      },
+      "use": "The play-triangle tail of the icon, NEW/unwatched badges, rating stars, warnings."
+    },
+    {
+      "role": "accent text on dark",
+      "name": "Volt Light",
+      "hex": "#B9A0FF",
+      "text_on_it": "#15121D",
+      "contrast": {
+        "on_background": 8.87,
+        "on_surface": 8.16
+      },
+      "use": "Links, active toggle icons (subtitles on, loop on) and selected tab labels on dark surfaces."
+    },
+    {
+      "role": "background",
+      "name": "Background",
+      "hex": "#0D0B14",
+      "use": "Player canvas/letterbox, library page, start screen, web app and Android window background."
+    },
+    {
+      "role": "raised surface",
+      "name": "Surface",
+      "hex": "#181522",
+      "use": "Control bar, cards, menus, settings panels, Android surface / bottom sheet."
+    },
+    {
+      "role": "raised surface (hover / popover)",
+      "name": "Raised",
+      "hex": "#242033",
+      "use": "Hovered rows and cards, tooltips, seek-preview bubble, dialogs."
+    },
+    {
+      "role": "border",
+      "name": "Border",
+      "hex": "#352F4A",
+      "use": "Dividers, outlined buttons, input outlines, drop-zone dashes."
+    },
+    {
+      "role": "text",
+      "name": "Text",
+      "hex": "#F5F2FB",
+      "contrast": {
+        "on_background": 17.65,
+        "on_surface": 16.23
+      },
+      "use": "Titles, primary labels, player control icons."
+    },
+    {
+      "role": "muted text",
+      "name": "Muted",
+      "hex": "#A8A1BC",
+      "contrast": {
+        "on_background": 7.9,
+        "on_surface": 7.26,
+        "on_raised": 6.39
+      },
+      "use": "Durations, metadata, secondary labels, inactive icons."
+    },
+    {
+      "role": "disabled text",
+      "name": "Faint",
+      "hex": "#6F6885",
+      "contrast": {
+        "on_background": 3.72
+      },
+      "use": "Disabled controls, placeholders (non-essential text only)."
+    },
+    {
+      "role": "success",
+      "name": "Success",
+      "hex": "#2FD6A1",
+      "text_on_it": "#15121D",
+      "contrast": {
+        "on_background": 10.47,
+        "ink_text": 9.91
+      },
+      "use": "Watched tick, saved/downloaded, connection OK."
+    },
+    {
+      "role": "error",
+      "name": "Error",
+      "hex": "#FF4D5E",
+      "text_on_it": "#15121D",
+      "contrast": {
+        "on_background": 6.02,
+        "ink_text": 5.7
+      },
+      "use": "Playback/codec errors, destructive actions. Always paired with an icon or label, never colour alone."
+    },
+    {
+      "role": "light theme ink",
+      "name": "Ink",
+      "hex": "#15121D",
+      "contrast": {
+        "on_paper": 17.55
+      },
+      "use": "Wordmark on light backgrounds, text on Ember/Spark/Success, light web theme text."
+    },
+    {
+      "role": "light theme background",
+      "name": "Paper",
+      "hex": "#FAF8FF",
+      "use": "Light web theme / docs / store listing background."
+    }
+  ],
+  "where": {
+    "player_seek_bar": {
+      "track": "rgba(255,255,255,0.16)",
+      "buffered": "rgba(255,255,255,0.26)",
+      "played": "gradient css_seekbar",
+      "thumb": "#FFFFFF with a 5px Ember 28% halo",
+      "preview_bubble": "#242033",
+      "chapter_marks": "#FF8A2B"
+    },
+    "player_buttons": {
+      "icons": "#F5F2FB",
+      "inactive": "#A8A1BC",
+      "active_toggle": "#B9A0FF",
+      "selected_pill": "#7438FF with white text",
+      "focus_ring": "#B9A0FF",
+      "control_bar": "#181522 at 85-92% opacity"
+    },
+    "library_page": {
+      "background": "#0D0B14",
+      "card": "#242033",
+      "card_selected_outline": "#7438FF",
+      "progress": "gradient css_seekbar, 4px",
+      "watched": "#2FD6A1",
+      "new_badge": "#FFD84A with Ink text",
+      "metadata": "#A8A1BC"
+    },
+    "start_screen": {
+      "background": "#0D0B14 with soft Volt (20%) and Pulse (10%) corner glows",
+      "logo": "lockup-dark.svg",
+      "primary_button": "#7438FF",
+      "secondary_button": "outlined, #352F4A",
+      "drop_zone": "dashed #352F4A, Volt on drag-over"
+    },
+    "web_app": {
+      "dark_theme": "same tokens as the player",
+      "light_theme": {
+        "background": "#FAF8FF",
+        "text": "#15121D",
+        "link": "#7438FF"
+      },
+      "favicon": "icon-16.svg (16), icon-small.svg (24/32), icon.svg (180/192/512), icon-maskable.svg (PWA maskable)"
+    },
+    "android_app": {
+      "colorPrimary": "#7438FF",
+      "colorOnPrimary": "#FFFFFF",
+      "colorSecondary": "#FF8A2B",
+      "colorOnSecondary": "#15121D",
+      "colorSurface": "#181522",
+      "android:colorBackground": "#0D0B14",
+      "colorError": "#FF4D5E",
+      "adaptive_icon": "icon-maskable.svg (glyph sits inside the 66/108 safe circle)",
+      "themed_icon": "mark-mono-*.svg"
+    },
+    "chrome_extension": {
+      "toolbar_16": "icon-16.svg",
+      "toolbar_24_32": "icon-small.svg",
+      "store_48_128": "icon.svg",
+      "popup": "dark tokens"
+    }
+  }
+}

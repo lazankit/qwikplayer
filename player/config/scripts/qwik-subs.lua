@@ -44,10 +44,17 @@ local settings = {}
 -- Windows tools (cmd, alass) want backslashes; mpv's join_path uses "/".
 local function native(p) return WIN and (p:gsub("/", "\\")) or p end
 
+-- System tools are started by full path under %SystemRoot%\System32, never by bare name: Windows would
+-- otherwise look in the current directory (often the video's folder) before System32.
+local SYS32 = (os.getenv("SystemRoot") or os.getenv("windir") or "C:\\Windows") .. "\\System32"
+local CMD_EXE = SYS32 .. "\\cmd.exe"
+local CURL_EXE = SYS32 .. "\\curl.exe"
+local POWERSHELL_EXE = SYS32 .. "\\WindowsPowerShell\\v1.0\\powershell.exe"
+
 local function mkdir(path)
   path = native(path)
   if WIN then
-    mp.command_native({ name = "subprocess", args = { "cmd.exe", "/d", "/c", "mkdir", path }, playback_only = false,
+    mp.command_native({ name = "subprocess", args = { CMD_EXE, "/d", "/c", "mkdir", path }, playback_only = false,
       capture_stdout = true, capture_stderr = true })
   else
     mp.command_native({ name = "subprocess", args = { "mkdir", "-p", path }, playback_only = false })
@@ -113,18 +120,28 @@ local function run(args, cb, env)
   end)
 end
 
+-- https only (also for redirects), size-capped; the URL goes after --url so a value starting with "-"
+-- can never be read as a curl option.
 local function curl(url, out, cb)
-  local args = { WIN and "curl.exe" or "curl", "-s", "-L", "--max-time", "40", "-A", UA, url }
+  if type(url) ~= "string" or not url:match("^https://[%w%.%-]+/") then cb(false, {}) return end
+  local args = { WIN and CURL_EXE or "curl", "-s", "-L", "--max-time", "40", "--proto", "=https", "--proto-redir", "=https",
+    "--max-filesize", "5000000", "-A", UA }
   if out then table.insert(args, "-o"); table.insert(args, out) end
+  table.insert(args, "--url"); table.insert(args, url)
   run(args, cb)
 end
 
+-- The PowerShell text is a constant: the two paths travel in environment variables, never in the command
+-- line, so no file name can be read as code.
+local GUNZIP_PS = "$i=[IO.File]::OpenRead($env:QWIK_SRC); $o=[IO.File]::Create($env:QWIK_DST); " ..
+  "$g=New-Object IO.Compression.GZipStream($i,[IO.Compression.CompressionMode]::Decompress); $g.CopyTo($o); $g.Close(); $o.Close(); $i.Close()"
+
 local function gunzip(src, dst, cb)
   if WIN then
-    local q = function(s) return "'" .. s:gsub("'", "''") .. "'" end
-    run({ "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
-      "$i=[IO.File]::OpenRead(" .. q(src) .. "); $o=[IO.File]::Create(" .. q(dst) .. "); " ..
-      "$g=New-Object IO.Compression.GZipStream($i,[IO.Compression.CompressionMode]::Decompress); $g.CopyTo($o); $g.Close(); $o.Close(); $i.Close()" }, cb)
+    local env = utils.get_env_list() or {}
+    table.insert(env, "QWIK_SRC=" .. src)
+    table.insert(env, "QWIK_DST=" .. dst)
+    run({ POWERSHELL_EXE, "-NoProfile", "-NonInteractive", "-Command", GUNZIP_PS }, cb, env)
   else
     run({ "sh", "-c", 'gzip -dc "$1" > "$2"', "sh", src, dst }, cb)
   end
@@ -173,9 +190,9 @@ local function is_local(path) return path and not path:match("^%a[%w+.-]*://") e
 
 -- ---------- search ----------
 
-local auto_pick = false   -- set by "auto": download the best result without showing the list
+local search_gen = 0   -- bumped on every search and every new file: answers to an older search are dropped
 
-local function search()
+local function search(auto_pick)   -- auto_pick: download the best result without showing the list
   local path = mp.get_property("path")
   if not path then state.status = "error"; state.message = "Open a video first"; publish() return end
   local name = mp.get_property("filename") or ""
@@ -184,6 +201,8 @@ local function search()
   state.status, state.results, state.message = "searching", {}, nil
   publish()
 
+  search_gen = search_gen + 1
+  local gen, for_path = search_gen, path
   local lang = settings.lang
   local by_name = (episode and ("episode-" .. episode .. "/") or "") .. "query-" .. url_part(title) ..
     (season and ("/season-" .. season) or "") .. "/sublanguageid-" .. lang
@@ -203,6 +222,7 @@ local function search()
   end
   local found, seen, pending, failed = {}, {}, #queries, 0
   local function finish()
+    if gen ~= search_gen then return end
     table.sort(found, function(a, b)
       if a.exact ~= b.exact then return a.exact end   -- made for this exact file first
       if a.hi ~= b.hi then return b.hi end            -- then plain over SDH
@@ -213,27 +233,29 @@ local function search()
     state.message = failed == #queries and "Couldn't reach OpenSubtitles — check your internet" or nil
     publish()
     if auto_pick then
-      auto_pick = false
       if #found > 0 then mp.commandv("script-message", "qwik-subs-download", "1") 
       else mp.osd_message("No subtitles found online for this episode", 3) end
     end
   end
   for _, q in ipairs(queries) do
     curl(q.url, nil, function(ok, res)
+      -- the episode changed (or a newer search started) while this one was in flight: drop the answer
+      if gen ~= search_gen or mp.get_property("path") ~= for_path then return end
       local list = ok and utils.parse_json(res.stdout or "") or nil
       if type(list) ~= "table" then failed = failed + 1 end
       for _, s in ipairs(type(list) == "table" and list or {}) do
         local fmt = (s.SubFormat or ""):lower()
-        if not seen[s.IDSubtitleFile] and s.SubDownloadLink and (fmt == "srt" or fmt == "ass" or fmt == "ssa" or fmt == "vtt" or fmt == "sub") then
+        local link = type(s.SubDownloadLink) == "string" and s.SubDownloadLink:match("^https://[%w%.%-]+/") and s.SubDownloadLink or nil
+        if not seen[s.IDSubtitleFile] and link and (fmt == "srt" or fmt == "ass" or fmt == "ssa" or fmt == "vtt" or fmt == "sub") then
           seen[s.IDSubtitleFile] = true
           local full = (s.SubFileName or "subtitle"):gsub("%.%w+$", "")
           local same = release(full):gsub("%.hi$", ""):gsub("%.sdh$", "") == mine
             or release(s.MovieReleaseName) == mine
           table.insert(found, {
             name = short(full),
-            lang = s.LanguageName or "", iso = s.ISO639 or "", format = fmt,
+            lang = tostring(s.LanguageName or ""), iso = tostring(s.ISO639 or ""):match("^%a%a%a?$") or "", format = fmt,
             downloads = tonumber(s.SubDownloadsCnt) or 0,
-            hi = s.SubHearingImpaired == "1", link = s.SubDownloadLink,
+            hi = s.SubHearingImpaired == "1", link = link,
             exact = q.exact or s.MatchedBy == "moviehash" or same,
           })
         end
@@ -258,7 +280,7 @@ local function download(index)
   local r = state.results[tonumber(index)]
   if not r then return end
   local path = mp.get_property("path") or ""
-  local base = (mp.get_property("filename/no-ext") or "subtitle"):gsub('[<>:"/\\|?*]', "_")
+  local base = (mp.get_property("filename/no-ext") or "subtitle"):gsub('[<>:"/\\|?*%c]', "_"):gsub("^%.+", "_")
   local dir = is_local(path) and utils.split_path(path) or nil
   if not dir or not writable(dir) then dir = utils.join_path(data_dir, "subtitles"); mkdir(dir) end
   local target = utils.join_path(dir, base .. "." .. (r.iso ~= "" and r.iso or "sub") .. "." .. r.format)
@@ -268,10 +290,12 @@ local function download(index)
   local gz = utils.join_path(temp_dir, "qwik-sub-" .. os.time() .. ".gz")
   mp.osd_message("⤓ Downloading subtitles…", 10)
   curl(r.link, gz, function(ok)
+    if mp.get_property("path") ~= path then os.remove(gz) return end   -- another video is playing now
     if not ok then mp.osd_message("Download failed — try another subtitle", 4) return end
     gunzip(gz, target, function(ok2)
       os.remove(gz)
       if not ok2 or not utils.file_info(target) then mp.osd_message("Couldn't unpack the subtitle file", 4) return end
+      if mp.get_property("path") ~= path then return end   -- saved next to its own video; don't attach it to the new one
       mp.commandv("sub-add", target, "select", r.lang ~= "" and r.lang or "Downloaded", r.iso)
       mp.osd_message("✓ Subtitles loaded: " .. r.lang .. (r.hi and " (SDH)" or ""), 3)
       state.status = "loaded"; publish()
@@ -351,13 +375,13 @@ end
 
 -- ---------- messages from the menus ----------
 
-mp.register_script_message("search", function() search() end)
+mp.register_script_message("search", function() search(false) end)
 mp.register_script_message("download", download)
 mp.register_script_message("qwik-subs-download", download)
 -- Next episode with subtitles on but none in the folder: fetch the best match quietly.
-mp.register_script_message("auto", function() auto_pick = true; mp.osd_message("Finding subtitles for this episode…", 3); search() end)
+mp.register_script_message("auto", function() mp.osd_message("Finding subtitles for this episode…", 3); search(true) end)
 mp.register_script_message("sync", sync)
-mp.register_script_message("lang", function(code) settings.lang = code; save_settings(); search() end)
+mp.register_script_message("lang", function(code) settings.lang = code; save_settings(); search(false) end)
 mp.register_script_message("style", function(key, value)
   if DEFAULTS[key] == nil or key == "lang" then return end
   settings[key] = tonumber(value) or value
@@ -376,6 +400,7 @@ load_settings()
 apply_style()
 publish()
 mp.register_event("file-loaded", function()
+  search_gen = search_gen + 1   -- a search still running belongs to the previous episode
   state.status, state.results, state.message = "idle", {}, nil
   publish()
 end)

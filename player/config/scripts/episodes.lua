@@ -127,7 +127,7 @@ local function render()
     local hist = history[norm(e.path)]
     if e.current then
       table.insert(out, rrect(g.x, y, g.pw, g.row, 0, "2A2A2A", "00"))
-      table.insert(out, rrect(g.x, y, math.floor(6 * s), g.row, 0, "1409E5", "00"))
+      table.insert(out, rrect(g.x, y, math.floor(6 * s), g.row, 0, "FF3874", "00"))
     elseif hv then
       table.insert(out, rrect(g.x, y, g.pw, g.row, 0, "FFFFFF", "E8"))
     end
@@ -140,13 +140,13 @@ local function render()
     if hist and hist.dur and hist.dur > 0 then table.insert(meta, math.floor(hist.dur / 60 + 0.5) .. " min") end
     if e.current then table.insert(meta, "Now playing")
     elseif hist and hist.watched then table.insert(meta, "Watched ✓") end
-    if #meta > 0 then table.insert(out, txt(tx2, y + math.floor(76 * s), 4, math.floor(21 * s), e.current and "1409E5" or "9A9A9A", false, table.concat(meta, "  ·  "))) end
+    if #meta > 0 then table.insert(out, txt(tx2, y + math.floor(76 * s), 4, math.floor(21 * s), e.current and "FFA0B9" or "9A9A9A", false, table.concat(meta, "  ·  "))) end
     -- progress bar for started episodes
     if hist and hist.dur and hist.dur > 0 and hist.pos and hist.pos > 30 and not hist.watched then
       local bw = math.floor(g.pw - (tx2 - g.x) - g.pad)
       local by = y + g.row - math.floor(14 * s)
       table.insert(out, rrect(tx2, by, bw, math.floor(4 * s), 1, "5A5A5A", "00"))
-      table.insert(out, rrect(tx2, by, math.max(2, math.floor(bw * math.min(1, hist.pos / hist.dur))), math.floor(4 * s), 1, "1409E5", "00"))
+      table.insert(out, rrect(tx2, by, math.max(2, math.floor(bw * math.min(1, hist.pos / hist.dur))), math.floor(4 * s), 1, "FF3874", "00"))
     end
     table.insert(hits, { x = g.x, y = y, w = g.pw, h = g.row, id = "ep" .. e.index })
   end
@@ -226,6 +226,7 @@ local KEYS = {
 close = function()
   if not open then return end
   open = false
+  mp.set_property_native("user-data/qwik/modal", false)
   for k in pairs(KEYS) do mp.remove_key_binding("episodes_" .. k) end
   mp.unobserve_property(on_mouse)
   mp.commandv("script-message-to", "uosc", "disable-elements", "episodes", "")
@@ -240,6 +241,7 @@ local function show()
   for _, e in ipairs(eps) do if e.current then season = e.season end end
   season = season or seasons[1]
   open = true
+  mp.set_property_native("user-data/qwik/modal", true)   -- tells Skip Intro / Next Episode to stay out of the way
   local list = season_eps()
   local rows = visible_rows(geo())
   hover, offset = nil, 0

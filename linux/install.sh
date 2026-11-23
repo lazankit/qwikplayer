@@ -7,13 +7,31 @@ share="${XDG_DATA_HOME:-$HOME/.local/share}"
 app="$share/qwikplayer"
 bin="$HOME/.local/bin"
 
-if ! command -v mpv >/dev/null 2>&1; then
+if ! command -v mpv >/dev/null 2>&1 && ! { command -v flatpak >/dev/null 2>&1 && flatpak info io.mpv.Mpv >/dev/null 2>&1; }; then
   echo "QwikPlayer needs mpv. Install it first, for example:"
   echo "  Debian/Ubuntu:  sudo apt install mpv"
   echo "  Fedora:         sudo dnf install mpv"
   echo "  Arch:           sudo pacman -S mpv"
   echo "  Any distro:     flatpak install flathub io.mpv.Mpv"
   exit 1
+fi
+
+# Which mpv: a normal install, or else the Flatpak (run as "flatpak run io.mpv.Mpv"; it is sandboxed, so the
+# QwikPlayer config folder is shared with it, read-only).
+if command -v mpv >/dev/null 2>&1; then
+  mpv_cmd="mpv"
+  mpv_version() { mpv --version 2>/dev/null; }
+else
+  mpv_cmd="flatpak run --filesystem=$app/config:ro io.mpv.Mpv"
+  mpv_version() { flatpak run io.mpv.Mpv --version 2>/dev/null; }
+fi
+
+# QwikPlayer's scripts use user-data, which mpv has from 0.36. An older mpv still opens, but some buttons and
+# overlays will not work, so say so. (If the version cannot be read, carry on.)
+ver="$(mpv_version | head -n1 | sed -n 's/^mpv v\{0,1\}\([0-9]*\.[0-9]*\).*/\1/p' || true)"
+if [ -n "$ver" ] && [ "$(printf '%s\n' 0.36 "$ver" | sort -V | head -n1)" != "0.36" ]; then
+  echo "Warning: your mpv is version $ver. QwikPlayer works best with mpv 0.36 or newer;"
+  echo "         some buttons and overlays will not work on this version. Update mpv if you can."
 fi
 
 # Upgrade from before the rename (the app was called Oranix): move the old folder, which also holds the
@@ -32,7 +50,7 @@ cp "$here/qwikplayer.png" "$share/icons/hicolor/256x256/apps/qwikplayer.png"
 # Launcher: mpv with the QwikPlayer config. The Windows-only video settings in mpv.conf are overridden here.
 cat > "$bin/qwikplayer" <<EOF
 #!/usr/bin/env bash
-exec mpv --config-dir="$app/config" --gpu-api=auto --hwdec=auto-safe --vo=gpu-next \\
+exec $mpv_cmd --config-dir="$app/config" --gpu-api=auto --hwdec=auto-safe --vo=gpu-next,gpu, \\
   --title='\${?media-title:\${media-title} - }QwikPlayer' "\$@"
 EOF
 chmod +x "$bin/qwikplayer"

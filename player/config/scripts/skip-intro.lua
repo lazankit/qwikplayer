@@ -1,11 +1,16 @@
 -- "Skip Intro" button. Intro and credits times come from the player (Intros.cs compares the
 -- audio of neighbouring episodes) via intros.json in the player's data folder, or from chapters named
 -- Intro/Opening/OP. Click the button or press Enter while it shows.
--- Also publishes user-data/qwik/credits (start of the end credits) for next-episode.lua.
+-- Also publishes user-data/qwik/credits (start of the end credits) for next-episode.lua and
+-- user-data/qwik/skip-visible (true while the button shows) so Next Episode can stack above it.
+-- The button stays out of the way (no drawing, no key bindings) while the Audio & Subtitles popup, the
+-- Episodes drawer or a uosc menu is open.
 
 local utils = require "mp.utils"
 local ov = mp.create_osd_overlay("ass-events")
 local info, visible, hovering, box = nil, false, false, nil
+local timer, past, last_key = nil, false, nil
+local cache_mtime, cache_size, cache_data = nil, nil, nil
 
 -- intros.json is in the player's data folder. The app passes that folder as script-opts qwik-data_dir;
 -- without it the same rule as the app applies: %LOCALAPPDATA%\QwikPlayer\Player, or the folder from
@@ -24,6 +29,11 @@ local FILE = data_file("intros.json")
 
 local function norm(p) return (p or ""):gsub("/", "\\"):lower() end
 
+local function blocked()
+  return mp.get_property_native("user-data/qwik/modal") == true
+    or mp.get_property_native("user-data/uosc/menu/type") ~= nil
+end
+
 local function from_chapters()
   local list = mp.get_property_native("chapter-list") or {}
   for i, c in ipairs(list) do
@@ -35,12 +45,39 @@ local function from_chapters()
   end
 end
 
+-- Parse intros.json only when the file changed (it is rewritten as episodes get analysed).
+local function read_data()
+  local fi = utils.file_info(FILE)
+  if not fi then cache_mtime, cache_size, cache_data = nil, nil, nil return nil end
+  if cache_data and cache_mtime == fi.mtime and cache_size == fi.size then return cache_data end
+  local f = io.open(FILE, "r")
+  if not f then return nil end
+  local data = utils.parse_json(f:read("*a") or "")
+  f:close()
+  if type(data) ~= "table" then data = {} end
+  cache_mtime, cache_size, cache_data = fi.mtime, fi.size, data
+  return data
+end
+
+local tick
+
+-- The timer runs only while this file has intro info and the intro isn't behind us:
+-- 1 s while waiting for the intro, 0.25 s while the button shows.
+local function set_timer(period)
+  if not period then if timer then timer:kill() end return end
+  if not timer then timer = mp.add_periodic_timer(period, function() tick() end) return end
+  if timer.timeout ~= period then timer:kill(); timer.timeout = period; timer:resume()
+  elseif not timer:is_enabled() then timer:resume() end
+end
+
+local function ensure_timer()
+  if info and info.introStart and not past then set_timer(visible and 0.25 or 1) else set_timer(nil) end
+end
+
 local function load()
   info = from_chapters()
-  local f = io.open(FILE, "r")
-  if f then
-    local data = utils.parse_json(f:read("*a") or "") or {}
-    f:close()
+  local data = read_data()
+  if data then
     local me = norm(mp.get_property("path"))
     for k, v in pairs(data) do
       if norm(k) == me then
@@ -51,6 +88,8 @@ local function load()
     end
   end
   mp.set_property_native("user-data/qwik/credits", info and info.creditsStart or -1)
+  past = false
+  ensure_timer()
 end
 
 local function rrect(x, y, w, h, r, color, alpha, extra)
@@ -58,12 +97,17 @@ local function rrect(x, y, w, h, r, color, alpha, extra)
     x, y, extra or "", color, alpha, r, w - r, w, w, w, r, w, h - r, w, h, w, h, w - r, h, r, h, h, h, h - r, r, r)
 end
 
+local on_mouse
+
 local function hide()
   if not visible then return end
-  visible, hovering, box = false, false, nil
+  visible, hovering, box, last_key = false, false, nil, nil
   mp.remove_key_binding("skip_intro_click")
   mp.remove_key_binding("skip_intro_enter")
+  mp.unobserve_property(on_mouse)
+  mp.set_property_native("user-data/qwik/skip-visible", false)
   ov:remove()
+  ensure_timer()
 end
 
 local function skip()
@@ -80,14 +124,18 @@ local function draw()
   local bw, bh = math.floor(300 * s), math.floor(90 * s)
   local x, y = math.floor(w - bw - 48 * s), math.floor(h - bh - 190 * s)
   box = { x = x, y = y, w = bw, h = bh }
-  ov.res_x, ov.res_y = w, h
-  ov.data = table.concat({
+  local data = table.concat({
     -- Look: dark glass with a white outline; fills white on hover
     rrect(x, y, bw, bh, math.floor(8 * s), hovering and "FFFFFF" or "1A1A1A", hovering and "00" or "40",
       "\\bord" .. math.max(1, math.floor(3 * s)) .. "\\3c&HFFFFFF&\\3a&H00&"),
     string.format("{\\an5\\pos(%d,%d)\\fnPoppins\\b1\\fs%d\\bord0\\shad0\\1c&H%s&}Skip Intro", x + math.floor(bw / 2), y + math.floor(bh / 2),
       math.floor(36 * s), hovering and "141414" or "FFFFFF"),
   }, "\n")
+  local key = w .. "x" .. h .. data
+  if key == last_key then return end   -- nothing changed: don't re-send the overlay
+  last_key = key
+  ov.res_x, ov.res_y = w, h
+  ov.data = data
   ov:update()
 end
 
@@ -97,12 +145,22 @@ local function inside()
   return m.x and m.x >= box.x and m.x <= box.x + box.w and m.y >= box.y and m.y <= box.y + box.h
 end
 
-local function tick()
+tick = function()
+  if blocked() then hide() return end
   local t = mp.get_property_number("time-pos")
-  if not info or not info.introStart or not t or t < info.introStart - 0.5 or t > info.introEnd - 2 then hide() return end
+  if not info or not info.introStart or not t or t < info.introStart - 0.5 then hide() return end
+  if t > info.introEnd - 2 then
+    past = true
+    hide()
+    ensure_timer()   -- stops it (past): nothing to show until the user seeks back
+    return
+  end
   if not visible then
     visible = true
+    mp.set_property_native("user-data/qwik/skip-visible", true)
     mp.add_forced_key_binding("ENTER", "skip_intro_enter", skip)
+    mp.observe_property("mouse-pos", "native", on_mouse)
+    ensure_timer()
   end
   local over = inside()
   if over ~= hovering then
@@ -113,8 +171,17 @@ local function tick()
   draw()
 end
 
+on_mouse = function() if visible then tick() end end
+
 mp.register_event("file-loaded", function() hide(); load() end)
-mp.register_script_message("intros-updated", load)
-mp.add_periodic_timer(0.25, tick)
-mp.observe_property("mouse-pos", "native", function() if visible then tick() end end)
+mp.register_event("seek", function() past = false; ensure_timer() end)
+mp.register_script_message("intros-updated", function(path)
+  -- the app may say which file was analysed; ignore updates for other files
+  if path and path ~= "" and norm(path) ~= norm(mp.get_property("path")) then return end
+  load()
+end)
+-- Drop the button's key bindings the moment a popup/drawer/menu opens (not up to a tick later).
+local function on_modal() if visible and blocked() then hide() end end
+mp.observe_property("user-data/qwik/modal", "native", on_modal)
+mp.observe_property("user-data/uosc/menu/type", "native", on_modal)
 mp.add_key_binding(nil, "skip", skip)

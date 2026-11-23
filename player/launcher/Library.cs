@@ -50,7 +50,10 @@ static class Library
 
     static readonly object Lock = new object();
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
-    static long lastSave;
+    static readonly object SaveLock = new object();
+    static readonly Stopwatch sinceSave = Stopwatch.StartNew();   // not TickCount: that overflows after 24.9 days of uptime
+    static volatile bool dirty;
+    static int saving;
 
     // The app was called Oranix before: the first run after the rename moves %LOCALAPPDATA%\Oranix\Player
     // to %LOCALAPPDATA%\QwikPlayer\Player (a rename on the same drive, never a copy). If the move fails, for
@@ -73,7 +76,7 @@ static class Library
 
     public static void Load()
     {
-        Directory.CreateDirectory(ThumbDir);
+        try { Directory.CreateDirectory(ThumbDir); } catch (Exception) { }   // unwritable data folder: later writes fail quietly
         try { var s = Json.Deserialize<Dictionary<string, object>>(File.ReadAllText(SettingsFile));
               Folders = ((System.Collections.ArrayList)s["folders"]).Cast<string>().ToList(); } catch { }
         if (Folders.Count == 0) {
@@ -81,23 +84,64 @@ static class Library
             Folders.Add(Path.Combine(home, "Downloads"));
             Folders.Add(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos));
         }
-        try { History = new Dictionary<string, HistoryEntry>(Json.Deserialize<Dictionary<string, HistoryEntry>>(File.ReadAllText(HistoryFile)), StringComparer.OrdinalIgnoreCase); } catch { }
-        try { Durations = Json.Deserialize<Dictionary<string, double>>(File.ReadAllText(MetaFile)); } catch { }
+        try {
+            var h = Json.Deserialize<Dictionary<string, HistoryEntry>>(File.ReadAllText(HistoryFile));   // an empty or "null" file gives null
+            if (h != null) {
+                History = new Dictionary<string, HistoryEntry>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in h) if (kv.Value != null) History[kv.Key] = kv.Value;
+            }
+        } catch { }
+        try { var d = Json.Deserialize<Dictionary<string, double>>(File.ReadAllText(MetaFile)); if (d != null) Durations = d; } catch { }
+    }
+
+    // Writes through a per-process temp file and swaps it in, so a crash never leaves a half-written file and
+    // two players writing at once don't collide. A failed write (file locked, disk full, ...) is never fatal.
+    public static bool WriteAtomic(string file, string text)
+    {
+        string tmp = file + "." + Process.GetCurrentProcess().Id + ".tmp";
+        try {
+            File.WriteAllText(tmp, text);
+            if (File.Exists(file)) File.Replace(tmp, file, null); else File.Move(tmp, file);
+            return true;
+        } catch (Exception) {
+            try { File.Delete(tmp); } catch { }
+            return false;
+        }
     }
 
     public static void SaveSettings()
     {
-        File.WriteAllText(SettingsFile, Json.Serialize(new Dictionary<string, object> { { "folders", Folders } }));
+        string text;
+        lock (Lock) text = Json.Serialize(new Dictionary<string, object> { { "folders", Folders } });
+        WriteAtomic(SettingsFile, text);
     }
 
+    // Saving is serialised (the UI thread and the thread pool both call it) and never throws.
     public static void SaveHistory()
     {
-        string text;
-        lock (Lock) text = Json.Serialize(History);
-        File.WriteAllText(HistoryFile + ".tmp", text);
-        File.Copy(HistoryFile + ".tmp", HistoryFile, true);
-        File.Delete(HistoryFile + ".tmp");
-        lastSave = Environment.TickCount;
+        lock (SaveLock) {
+            try {
+                dirty = false;
+                MergeNewerFromDisk();   // another player instance may have saved a newer position for a file
+                string text;
+                lock (Lock) text = Json.Serialize(History);
+                if (!WriteAtomic(HistoryFile, text)) dirty = true;   // try again at the next sample
+            } catch (Exception) { dirty = true; }
+            sinceSave.Restart();
+        }
+    }
+
+    static void MergeNewerFromDisk()
+    {
+        Dictionary<string, HistoryEntry> disk;
+        try { disk = Json.Deserialize<Dictionary<string, HistoryEntry>>(File.ReadAllText(HistoryFile)); } catch { return; }
+        if (disk == null) return;
+        lock (Lock) {
+            foreach (var kv in disk) {
+                HistoryEntry mine;
+                if (kv.Value != null && History.TryGetValue(kv.Key, out mine) && kv.Value.updated > mine.updated) History[kv.Key] = kv.Value;
+            }
+        }
     }
 
     static long Now() { return (long)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalMilliseconds; }
@@ -106,6 +150,7 @@ static class Library
     public static void Record(string path, double pos, double dur)
     {
         if (string.IsNullOrEmpty(path) || dur <= 0 || pos < 0) return;
+        double credits = Intros.CreditsStart(path);   // looked up before taking Lock (Intros has its own lock)
         lock (Lock) {
             HistoryEntry h;
             if (!History.TryGetValue(path, out h)) {
@@ -113,10 +158,17 @@ static class Library
                 h = new HistoryEntry { first = Now() };
                 History[path] = h;
             }
+            if (Math.Abs(pos - h.pos) < 0.01 && h.dur == dur) return;   // paused or stalled: nothing changed, nothing to write
             h.pos = pos; h.dur = dur; h.updated = Now();
-            if (pos >= dur * 0.93 || dur - pos < 60) h.watched = true;
+            if (pos >= dur * 0.93 || dur - pos < 60 || (credits > 0 && pos >= credits)) h.watched = true;
+            else if (h.watched && pos > 30 && pos < dur * 0.9 && dur - pos > 120) h.watched = false;   // watching it again
+            dirty = true;
         }
-        if (Environment.TickCount - lastSave > 10000) SaveHistory();
+        // Periodic save: off the UI thread, and only when something changed.
+        if (dirty && sinceSave.ElapsedMilliseconds > 10000 && Interlocked.CompareExchange(ref saving, 1, 0) == 0) {
+            sinceSave.Restart();
+            ThreadPool.QueueUserWorkItem(_ => { try { SaveHistory(); } finally { Interlocked.Exchange(ref saving, 0); } });
+        }
     }
 
     public static void SetWatched(string path, bool watched)
@@ -178,21 +230,23 @@ static class Library
         var it = new LibraryItem { path = f.FullName, size = f.Length, key = KeyOf(f.FullName, f.Length),
             added = (long)(f.LastWriteTimeUtc - new DateTime(1970, 1, 1)).TotalMilliseconds };
         string name = Path.GetFileNameWithoutExtension(f.Name);
-        Match m = SeriesRx.Match(name);
-        if (!m.Success) m = AltSeriesRx.Match(Spaced(name));
+        string sp = Spaced(name);   // "Show_S01E02" has no word boundary before the S until the underscores are spaces
+        Match m = SeriesRx.Match(sp);
+        if (!m.Success) m = AltSeriesRx.Match(sp);
         if (m.Success) {
             string show = Clean(m.Groups["t"].Value);
             if (show.Length == 0) show = Clean(f.Directory.Name);   // "S01E05.mkv" inside "The Americans Season 1"
             if (show.Length == 0) show = "Unknown series";
             it.kind = "episode";
             it.show = Pretty(show);
-            it.showId = Regex.Replace(show.ToLowerInvariant(), "[^a-z0-9]", "");
+            it.showId = Regex.Replace(show.ToLowerInvariant(), @"[^\p{L}\p{M}\p{Nd}]", "");   // letters of any script
+            if (it.showId.Length == 0) it.showId = show.ToLowerInvariant();
             it.season = int.Parse(m.Groups["s"].Value);
             it.episode = int.Parse(m.Groups["e"].Value);
-            it.title = Clean(m.Groups["rest"].Value);
+            it.title = Clean(Regex.Replace(m.Groups["rest"].Value, @"^(?:[\s\-]*[Ee]\d{1,3}\b)+", ""));   // S01E01E02 / S01E01-E02
             return it;
         }
-        string spaced = Spaced(name);
+        string spaced = sp;
         m = MovieRx.Match(spaced);
         if (m.Success && f.Length > 300L * 1024 * 1024) {
             it.kind = "movie";
@@ -245,9 +299,19 @@ static class Library
     }
 
     // Every episode of the same series, in order.
-    public static List<LibraryItem> ShowEpisodes(string showId)
+    // The same season and episode in two files (a sample, two releases) counts once: `keepPath` if it is one of them, else the largest.
+    public static List<LibraryItem> ShowEpisodes(string showId, string keepPath = null)
     {
-        lock (Lock) return Items.Where(i => i.kind == "episode" && i.showId == showId).OrderBy(i => i.season).ThenBy(i => i.episode).ToList();
+        lock (Lock)
+            return Items.Where(i => i.kind == "episode" && i.showId == showId)
+                .GroupBy(i => i.season * 10000 + i.episode)
+                .Select(g => g.FirstOrDefault(i => keepPath != null && string.Equals(i.path, keepPath, StringComparison.OrdinalIgnoreCase)) ?? g.OrderByDescending(i => i.size).First())
+                .OrderBy(i => i.season).ThenBy(i => i.episode).ToList();
+    }
+
+    public static bool TryGetDuration(string key, out double dur)
+    {
+        lock (Lock) return Durations.TryGetValue(key, out dur);
     }
 
     // ---------- state for the page ----------
@@ -284,9 +348,39 @@ static class Library
 
     static Thread worker;
     static volatile bool rerun;
+    // Thumbnails are only made while the library is on screen: set true while a video plays.
+    public static volatile bool Paused = true;
+    // One ffmpeg at a time (thumbnails and intro analysis share this), at idle priority, and every child is
+    // killed when the player exits so a hung or long ffmpeg never outlives it.
+    public static readonly object FfmpegGate = new object();
+    static readonly List<Process> children = new List<Process>();
+    static bool exiting;
+
+    public static Process StartFfmpeg(ProcessStartInfo psi)
+    {
+        lock (children) {
+            if (exiting) return null;
+            var p = Process.Start(psi);
+            children.Add(p);
+            try { p.PriorityClass = ProcessPriorityClass.Idle; } catch { }
+            return p;
+        }
+    }
+
+    public static void Release(Process p) { lock (children) children.Remove(p); }
+
+    public static void KillChildren()
+    {
+        lock (children) {
+            exiting = true;
+            foreach (var p in children) { try { p.Kill(); } catch { } }
+            children.Clear();
+        }
+    }
 
     public static void StartThumbnails()
     {
+        Paused = false;
         if (Ffmpeg == null || !File.Exists(Ffmpeg)) return;
         lock (Lock) {
             if (worker != null && worker.IsAlive) { rerun = true; return; }
@@ -296,6 +390,11 @@ static class Library
     }
 
     static void ThumbLoop()
+    {
+        try { ThumbLoopCore(); } catch (Exception) { }   // a worker exception must never take the player down
+    }
+
+    static void ThumbLoopCore()
     {
         do {
             rerun = false;
@@ -310,15 +409,16 @@ static class Library
             foreach (var i in items) jobs.Add(Tuple.Create(i.key, i.path, i.kind == "episode" ? 420.0 : i.kind == "movie" ? 900.0 : 15.0, 640));
             bool changed = false;
             foreach (var j in jobs) {
+                if (Paused) break;
                 string jpg = Path.Combine(ThumbDir, j.Item1 + ".jpg");
                 if (File.Exists(jpg)) continue;
                 double dur = Grab(j.Item2, j.Item3, j.Item4, jpg);
                 if (!File.Exists(jpg) && dur > 0) Grab(j.Item2, dur * 0.2, j.Item4, jpg);   // shorter than the seek point
                 if (dur > 0 && !j.Item1.StartsWith("bd-")) { lock (Lock) Durations[j.Item1] = dur; changed = true; }
-                if (File.Exists(jpg) && ThumbReady != null) ThumbReady(j.Item1);
+                if (File.Exists(jpg)) { var ready = ThumbReady; if (ready != null) ready(j.Item1); }
             }
-            if (changed) { string t; lock (Lock) t = Json.Serialize(Durations); File.WriteAllText(MetaFile, t); }
-        } while (rerun);
+            if (changed) { string t; lock (Lock) t = Json.Serialize(Durations); WriteAtomic(MetaFile, t); }
+        } while (rerun && !Paused);
     }
 
     static readonly Regex DurRx = new Regex(@"Duration: (\d+):(\d+):(\d+(\.\d+)?)");
@@ -330,12 +430,21 @@ static class Library
             var psi = new ProcessStartInfo(Ffmpeg, string.Format(CultureInfo.InvariantCulture,
                 "-hide_banner -ss {0:0.###} -i \"{1}\" -frames:v 1 -vf scale={2}:-2 -q:v 3 -y \"{3}\"", at, video, width, jpg)) {
                 UseShellExecute = false, CreateNoWindow = true, RedirectStandardError = true };
-            using (var p = Process.Start(psi)) {
-                string err = p.StandardError.ReadToEnd();
-                if (!p.WaitForExit(30000)) { p.Kill(); return 0; }
-                Match m = DurRx.Match(err);
-                if (!m.Success) return 0;
-                return int.Parse(m.Groups[1].Value) * 3600 + int.Parse(m.Groups[2].Value) * 60 + double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture);
+            lock (FfmpegGate) {
+                var p = StartFfmpeg(psi);
+                if (p == null) return 0;
+                try {
+                    // Read stderr asynchronously: a blocking ReadToEnd would hang with the process and the timeout would never fire.
+                    var err = new StringBuilder();
+                    p.ErrorDataReceived += (o, e) => { if (e.Data != null) lock (err) err.AppendLine(e.Data); };
+                    p.BeginErrorReadLine();
+                    if (!p.WaitForExit(30000)) { try { p.Kill(); } catch { } return 0; }
+                    p.WaitForExit();   // lets the last stderr lines arrive
+                    string text; lock (err) text = err.ToString();
+                    Match m = DurRx.Match(text);
+                    if (!m.Success) return 0;
+                    return int.Parse(m.Groups[1].Value) * 3600 + int.Parse(m.Groups[2].Value) * 60 + double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture);
+                } finally { Release(p); p.Dispose(); }
             }
         } catch { return 0; }
     }

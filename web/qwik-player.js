@@ -101,7 +101,7 @@ ytd-enforcement-message-view-model,tp-yt-iron-overlay-backdrop{display:none!impo
 .wrap.full .catch{touch-action:none}
 .catch{-webkit-touch-callout:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
 .boost{position:absolute;top:18px;left:50%;transform:translate(-50%,-6px);padding:6px 16px;border-radius:999px;font-size:14px;font-weight:600;
-  background:rgba(31,31,31,.7);backdrop-filter:blur(14px);border:1px solid rgba(255,122,0,.5);color:#FF7A00;opacity:0;
+  background:rgba(24,21,34,.7);backdrop-filter:blur(14px);border:1px solid rgba(116,56,255,.5);color:#B9A0FF;opacity:0;
   transition:opacity .12s,transform .12s;pointer-events:none}
 .boost.on{opacity:1;transform:translate(-50%,0)}
 /* Phones in portrait: keep the bar to the essentials (double-tap seeks, hardware keys do volume) */
@@ -128,64 +128,64 @@ ytd-enforcement-message-view-model,tp-yt-iron-overlay-backdrop{display:none!impo
 .scrim.b{bottom:0;height:200px;background:linear-gradient(transparent,rgba(0,0,0,.6))}
 .top{position:absolute;left:18px;right:18px;top:14px;display:flex;align-items:center;gap:12px}
 .brand{font-weight:700;font-size:16px;letter-spacing:.2px;display:flex;align-items:center;gap:8px}
-.brand b{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,#FFA94D,#F25C00);display:grid;place-items:center}
+.brand b{width:22px;height:22px;border-radius:7px;background:linear-gradient(135deg,#FF8A2B,#FF2D87 55%,#7438FF);display:grid;place-items:center}
 .brand b svg{width:14px;height:14px;fill:#fff}
-.brand i{color:#FF7A00;font-style:normal}
+.brand span{background:linear-gradient(90deg,#FF8A2B,#FF2D87,#B9A0FF);-webkit-background-clip:text;background-clip:text;color:transparent}.brand i{font-style:normal}
 .title{flex:1;font-size:14px;opacity:.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 6px #000}
 .bar{position:absolute;left:18px;right:18px;bottom:18px;padding:10px 14px 8px;border-radius:16px;
-  background:rgba(31,31,31,.62);backdrop-filter:blur(18px) saturate(1.5);border:1px solid rgba(255,255,255,.09);
+  background:rgba(24,21,34,.62);backdrop-filter:blur(18px) saturate(1.5);border:1px solid rgba(255,255,255,.09);
   box-shadow:0 10px 34px rgba(0,0,0,.45)}
 .prog{position:relative;height:5px;border-radius:3px;background:rgba(255,255,255,.18);cursor:pointer;margin:4px 2px 10px;transition:height .12s}
 .prog:hover{height:8px}
 .prog::before{content:'';position:absolute;inset:-8px 0}
 .buf,.fill{position:absolute;left:0;top:0;bottom:0;border-radius:3px}
 .buf{background:rgba(255,255,255,.22)}
-.fill{background:linear-gradient(90deg,#FFA94D,#FF7A00)}
-.knob{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#FF7A00;
-  box-shadow:0 0 0 5px rgba(255,122,0,.22);transform:scale(.8);transition:transform .12s}
+.fill{background:linear-gradient(90deg,#FF8A2B,#FF2D87,#7438FF)}
+.knob{position:absolute;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#7438FF;
+  box-shadow:0 0 0 5px rgba(116,56,255,.22);transform:scale(.8);transition:transform .12s}
 .prog:hover .knob{transform:scale(1)}
-.tip{position:absolute;bottom:16px;transform:translateX(-50%);background:#1F1F1F;padding:3px 8px;border-radius:7px;font-size:12px;display:none;white-space:nowrap}
+.tip{position:absolute;bottom:16px;transform:translateX(-50%);background:#0D0B14;padding:3px 8px;border-radius:7px;font-size:12px;display:none;white-space:nowrap}
 .prog:hover .tip{display:block}
 .row{display:flex;align-items:center;gap:4px}
 .b{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;cursor:pointer;color:#fff;transition:background .12s,color .12s,transform .08s}
-.b:hover{background:rgba(255,255,255,.1);color:#FF7A00}
+.b:hover{background:rgba(255,255,255,.1);color:#B9A0FF}
 .b:active{transform:scale(.92)}
 .b svg{width:22px;height:22px;fill:currentColor}
-.play{width:44px;height:44px;border-radius:50%;background:#FF7A00;margin-right:6px;box-shadow:0 4px 16px rgba(255,122,0,.4)}
-.play:hover{background:#FF8F26;color:#fff}
+.play{width:44px;height:44px;border-radius:50%;background:#7438FF;margin-right:6px;box-shadow:0 4px 16px rgba(116,56,255,.4)}
+.play:hover{background:#8B5BFF;color:#fff}
 .time{font-size:13px;opacity:.9;margin:0 10px;font-variant-numeric:tabular-nums}
 .sp{flex:1}
-.toast{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.96);background:rgba(31,31,31,.7);backdrop-filter:blur(14px);
+.toast{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.96);background:rgba(24,21,34,.7);backdrop-filter:blur(14px);
   padding:12px 20px;border-radius:16px;font-size:15px;opacity:0;transition:opacity .18s,transform .18s;display:flex;gap:14px;align-items:center;pointer-events:none}
 .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
 .meter{width:170px;height:6px;border-radius:3px;background:rgba(255,255,255,.2);overflow:hidden}
-.meter>div{height:100%;background:linear-gradient(90deg,#FFA94D,#FF7A00);transition:width .1s}
-.pop{position:absolute;right:18px;bottom:112px;min-width:250px;max-height:52vh;overflow:auto;background:rgba(31,31,31,.72);
+.meter>div{height:100%;background:linear-gradient(90deg,#FF8A2B,#FF2D87,#7438FF);transition:width .1s}
+.pop{position:absolute;right:18px;bottom:112px;min-width:250px;max-height:52vh;overflow:auto;background:rgba(24,21,34,.72);
   backdrop-filter:blur(18px) saturate(1.5);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:8px;
-  box-shadow:0 12px 34px rgba(0,0,0,.5);animation:in .16s ease-out;scrollbar-width:thin;scrollbar-color:#FF7A00 transparent}
+  box-shadow:0 12px 34px rgba(0,0,0,.5);animation:in .16s ease-out;scrollbar-width:thin;scrollbar-color:#B9A0FF transparent}
 @keyframes in{from{opacity:0;transform:translateY(10px)}}
 .h{font-size:11px;letter-spacing:2px;color:#8c8c8c;padding:8px 12px 4px;text-transform:uppercase}
 .it{padding:8px 12px 8px 32px;border-radius:9px;cursor:pointer;font-size:14px;position:relative;color:#d6d6d6}
 .it:hover,.it.hv{background:rgba(255,255,255,.1)}
 .it.on{color:#fff;font-weight:600}
-.it.on::before{content:'✓';position:absolute;left:12px;color:#FF7A00}
+.it.on::before{content:'✓';position:absolute;left:12px;color:#B9A0FF}
 .backbtn{display:flex;align-items:center;gap:6px;padding:7px 14px 7px 10px;border-radius:999px;cursor:pointer;font-size:13px;font-weight:600;
-  background:rgba(31,31,31,.6);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.12);transition:background .12s,transform .08s}
-.backbtn:hover{background:rgba(255,122,0,.9)}
+  background:rgba(24,21,34,.6);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.12);transition:background .12s,transform .08s}
+.backbtn:hover{background:rgba(116,56,255,.9)}
 .backbtn:active{transform:scale(.96)}
 .backbtn svg{width:16px;height:16px;fill:currentColor}
-.b:hover svg{filter:drop-shadow(0 0 6px rgba(255,122,0,.6))}
+.b:hover svg{filter:drop-shadow(0 0 6px rgba(116,56,255,.6))}
 .b.off{opacity:.3;pointer-events:none}
-.upnext{position:absolute;right:18px;bottom:120px;width:300px;padding:14px 16px;border-radius:16px;background:rgba(31,31,31,.8);
+.upnext{position:absolute;right:18px;bottom:120px;width:300px;padding:14px 16px;border-radius:16px;background:rgba(24,21,34,.8);
   backdrop-filter:blur(18px) saturate(1.5);border:1px solid rgba(255,255,255,.12);box-shadow:0 12px 34px rgba(0,0,0,.5);animation:in .2s ease-out}
-.upnext .k{font-size:11px;letter-spacing:2px;color:#FF7A00;text-transform:uppercase;font-weight:600}
+.upnext .k{font-size:11px;letter-spacing:2px;color:#B9A0FF;text-transform:uppercase;font-weight:600}
 .upnext .n{font-size:15px;font-weight:600;margin:4px 0 12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .upnext .r{display:flex;gap:8px}
 .upnext .go,.upnext .no{flex:1;text-align:center;padding:8px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600}
-.upnext .go{background:#FF7A00}.upnext .go:hover{background:#FF8F26}
+.upnext .go{background:#7438FF}.upnext .go:hover{background:#8B5BFF}
 .upnext .no{background:rgba(255,255,255,.1)}.upnext .no:hover{background:rgba(255,255,255,.18)}
 .upnext .ring{height:3px;border-radius:2px;background:rgba(255,255,255,.15);margin-top:12px;overflow:hidden}
-.upnext .ring>div{height:100%;background:#FF7A00;width:100%;transition:width 5s linear}`;
+.upnext .ring>div{height:100%;background:#7438FF;width:100%;transition:width 5s linear}`;
 
   // Page-level rules. The whole page is hidden (visibility is inherited) and only the chosen
   // video - or the iframe that holds it - is made visible and pinned to the window. Hiding beats
@@ -889,24 +889,24 @@ html.qwik-on .ytp-caption-window-container{visibility:visible!important;position
   const DETECT_CSS = `
 :host{all:initial}
 .pill{position:fixed;top:14px;right:18px;z-index:2147483647;display:flex;align-items:center;gap:10px;padding:8px 14px 8px 8px;
-  border-radius:999px;background:rgba(31,31,31,.78);backdrop-filter:blur(16px) saturate(1.5);border:1px solid rgba(255,255,255,.1);
+  border-radius:999px;background:rgba(24,21,34,.78);backdrop-filter:blur(16px) saturate(1.5);border:1px solid rgba(255,255,255,.1);
   color:#fff;font:600 13px Poppins,'Segoe UI',sans-serif;cursor:pointer;box-shadow:0 8px 26px rgba(0,0,0,.45);animation:in .2s ease-out}
 .pill:hover{background:rgba(45,45,45,.9)}
-.dot{width:30px;height:30px;border-radius:50%;background:#FF7A00;display:grid;place-items:center}
+.dot{width:30px;height:30px;border-radius:50%;background:#7438FF;display:grid;place-items:center}
 .dot svg{width:16px;height:16px;fill:#fff}
 .live .dot{animation:pulse 1.6s infinite}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,122,0,.6)}70%{box-shadow:0 0 0 10px rgba(255,122,0,0)}100%{box-shadow:0 0 0 0 rgba(255,122,0,0)}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(116,56,255,.6)}70%{box-shadow:0 0 0 10px rgba(116,56,255,0)}100%{box-shadow:0 0 0 0 rgba(116,56,255,0)}}
 @keyframes in{from{opacity:0;transform:translateY(-6px)}}
-.n{background:#FF7A00;border-radius:999px;padding:1px 8px;font-size:12px}
+.n{background:#7438FF;border-radius:999px;padding:1px 8px;font-size:12px}
 .list{position:fixed;top:62px;right:18px;z-index:2147483647;width:340px;max-height:60vh;overflow:auto;padding:8px;border-radius:16px;
-  background:rgba(31,31,31,.85);backdrop-filter:blur(18px) saturate(1.5);border:1px solid rgba(255,255,255,.1);
+  background:rgba(24,21,34,.85);backdrop-filter:blur(18px) saturate(1.5);border:1px solid rgba(255,255,255,.1);
   box-shadow:0 12px 34px rgba(0,0,0,.5);font:13px Poppins,'Segoe UI',sans-serif;color:#ddd;animation:in .16s ease-out}
 .h{font-size:11px;letter-spacing:2px;color:#8c8c8c;padding:8px 12px 6px;text-transform:uppercase}
 .v{padding:9px 12px;border-radius:10px;cursor:pointer}
 .v:hover{background:rgba(255,255,255,.1);color:#fff}
 .t{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .m{font-size:12px;color:#9a9a9a;margin-top:2px}
-.m b{color:#FF7A00;font-weight:600}`;
+.m b{color:#B9A0FF;font-weight:600}`;
   let dHost = null, dRoot = null, listOpen = false, dSig = '';
 
   function playEntry(v) { listOpen = false; playPath(v.path, v.id); }

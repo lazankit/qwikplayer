@@ -8,12 +8,14 @@
 <p align="center"><b>One clean player bar for every video — on websites and on your own files.</b></p>
 
 <p align="center">
-  <a href="https://github.com/lazankit/qwikplayer/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/lazankit/qwikplayer?color=FF7A00&label=release"></a>
-  <a href="https://github.com/lazankit/qwikplayer/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/lazankit/qwikplayer/total?color=FF7A00"></a>
-  <img alt="Windows | Linux | Android | Chrome" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20Android%20%7C%20Chrome-1F1F1F">
-  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-1F1F1F"></a>
-  <a href="https://github.com/lazankit/qwikplayer/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/lazankit/qwikplayer?style=flat&color=FF7A00"></a>
+  <a href="https://github.com/lazankit/qwikplayer/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/lazankit/qwikplayer?color=7438FF&label=release"></a>
+  <a href="https://github.com/lazankit/qwikplayer/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/lazankit/qwikplayer/total?color=7438FF"></a>
+  <img alt="Windows | Linux | Android | Chrome" src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20Android%20%7C%20Chrome-181522">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-181522"></a>
+  <a href="https://github.com/lazankit/qwikplayer/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/lazankit/qwikplayer?style=flat&color=7438FF"></a>
 </p>
+
+<p align="center"><sub>Not affiliated with the Qwik framework, Builder.io or Quickplay.</sub></p>
 
 <p align="center">
   <a href="https://github.com/lazankit/qwikplayer/releases/latest"><b>⬇ Download</b></a> ·
@@ -50,7 +52,7 @@ All downloads are on the **[latest release](https://github.com/lazankit/qwikplay
 ## Features
 
 ### QwikPlayer (Windows; Linux as an mpv setup)
-- **Clay + glass look** in QwikPlayer orange and charcoal, Poppins type, its own start screen.
+- **Clay + glass look** in the QwikPlayer violet, pink and orange palette on near-black, Poppins type, its own start screen.
 - **Netflix-style library**: your series grouped by season, Continue watching, episode thumbnails, watched marks and full history (Ctrl+L from a video).
 - **Subtitles from the internet** (OpenSubtitles, matched to your exact file), **sync to audio** (alass) and a **style menu** with readable fonts — Atkinson Hyperlegible, OpenDyslexic, Lexend.
 - **Audio & Subtitles popup** — English listed first, one click to switch. **C** turns subtitles on/off (remembers your pick).

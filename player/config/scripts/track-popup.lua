@@ -180,6 +180,8 @@ end
 local function render()
   if not open then ov:remove() return end
   local g = geo()
+  hover = math.max(1, math.min(hover, #items))
+  offset = math.max(0, math.min(offset, #items - g.rows))
   if hover <= offset then offset = hover - 1 end
   if hover > offset + g.rows then offset = hover - g.rows end
   local r = math.floor(g.fs * 1.1)
@@ -197,17 +199,19 @@ local function render()
     local it = items[i + offset]
     local ry = g.y + g.pad + (i - 1) * g.row
     local cy = ry + g.row / 2
-    if it.header then
+    if not it then
+      -- nothing to draw (list shrank under us)
+    elseif it.header then
       table.insert(out, text(g.x + g.fs, cy + g.fs * 0.1, math.floor(g.fs * 0.72), "8C8C8C", true,
         it.header:upper(), "\\fsp2" .. fade))
     else
-      if it.active then   -- the chosen row sits on a soft orange clay pill
-        table.insert(out, rrect(g.x + g.pad, ry + 2, g.pw - g.pad * 2, g.row - 4, math.floor(r * 0.6), "1409E5", "D6", fade))
+      if it.active then   -- the chosen row sits on a soft accent clay pill
+        table.insert(out, rrect(g.x + g.pad, ry + 2, g.pw - g.pad * 2, g.row - 4, math.floor(r * 0.6), "FF3874", "D6", fade))
       end
       if i + offset == hover then
         table.insert(out, rrect(g.x + g.pad, ry + 2, g.pw - g.pad * 2, g.row - 4, math.floor(r * 0.6), "FFFFFF", "DE", fade))
       end
-      if it.active then table.insert(out, text(g.x + g.fs * 0.9, cy, g.fs, "1409E5", true, "✓", fade)) end
+      if it.active then table.insert(out, text(g.x + g.fs * 0.9, cy, g.fs, "FF3874", true, "✓", fade)) end
       -- Long names (release names) are cut to fit; notes (download counts) sit on the right.
       local room = math.floor((g.pw - g.fs * 3.2 - (it.note and g.fs * 3 or 0)) / (g.fs * 0.46))
       local label = it.text
@@ -223,7 +227,7 @@ local function render()
     local th = g.ph - g.pad * 2
     local bh = math.max(g.row, th * g.rows / #items)
     local by = g.y + g.pad + (th - bh) * offset / (#items - g.rows)
-    table.insert(out, rrect(g.x + g.pw - g.pad * 0.7, by, math.max(3, g.fs * 0.18), bh, 2, "1409E5", "00", fade))
+    table.insert(out, rrect(g.x + g.pw - g.pad * 0.7, by, math.max(3, g.fs * 0.18), bh, 2, "FF3874", "00", fade))
   end
   ov.res_x, ov.res_y = g.w, g.h
   ov.data = table.concat(out, "\n")
@@ -302,6 +306,7 @@ local KEYS = {
 
 close = function()
   open = false
+  mp.set_property_native("user-data/qwik/modal", false)
   for k in pairs(KEYS) do mp.remove_key_binding("track_popup_" .. k) end
   mp.unobserve_property(on_mouse)
   if hide_timer then hide_timer:kill() end
@@ -313,6 +318,7 @@ show = function(m)
   mode = m
   build()
   open, offset, hover = true, 0, 1
+  mp.set_property_native("user-data/qwik/modal", true)   -- tells Skip Intro / Next Episode to stay out of the way
   if m == "tracks" or m == "speed" or m == "lang" then
     for i, it in ipairs(items) do if it.active and it.kind ~= "audio" then hover = i end end
   end
@@ -375,4 +381,6 @@ mp.observe_property("user-data/qwik-subs", "native", function(_, v)
   end
 end)
 mp.observe_property("osd-dimensions", "native", function() if open then render() end end)
-mp.register_event("file-loaded", function() if open then build(); render() end end)
+mp.register_event("file-loaded", function()
+  if open then hover = math.max(1, math.min(hover, #items)); build(); hover = math.max(1, math.min(hover, #items)); render() end
+end)
