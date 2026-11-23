@@ -6,7 +6,7 @@
 ; below must never change, and the old names in the "from the Oranix days" blocks are there on purpose:
 ; they are how the old files, shortcuts and registry entries are found. Do not rename them.
 
-#define AppVersion "1.4.0"
+#define AppVersion "2.0.0"
 
 [Setup]
 ; Same AppId as the Oranix installer: Windows then sees one app, updated, not two side by side.
