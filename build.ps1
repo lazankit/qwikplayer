@@ -1,6 +1,6 @@
-# Builds both Oranix apps into dist\ and (optionally) the installer OranixSetup.exe.
+# Builds both QwikPlayer apps into dist\ and (optionally) the installer QwikPlayerSetup.exe.
 #   .\build.ps1             -> dist\Player, dist\Web
-#   .\build.ps1 -Installer  -> also installer\Output\OranixSetup.exe
+#   .\build.ps1 -Installer  -> also installer\Output\QwikPlayerSetup.exe
 # The apps are AnyCPU .NET Framework programs: they run natively on x64 and on Windows on ARM (ARM64).
 param([switch]$Installer)
 $ErrorActionPreference = 'Stop'
@@ -9,7 +9,7 @@ $dist = Join-Path $src 'dist'
 $csc = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 $common = '/nologo', '/codepage:65001', '/target:winexe', '/platform:anycpu', '/optimize+'
 
-# Oranix Player: the app + bundled libmpv (x64 and ARM64) + its config (uosc, Oranix scripts, fonts).
+# QwikPlayer: the app + bundled libmpv (x64 and ARM64) + its config (uosc, its own scripts, fonts).
 # libmpv comes from shinchiro/mpv-winbuild-cmake (pinned build, downloaded on first build).
 $mpvBuild = '20261007'; $mpvGit = 'eb0ee10315'
 foreach ($a in @(@('x64', 'x86_64'), @('arm64', 'aarch64'))) {
@@ -30,7 +30,7 @@ if (!(Test-Path "$src\player\alass\bin\alass-cli.exe")) {
   # alass finds ffmpeg/ffprobe next to itself, so the player needs no environment setup to run it.
   Copy-Item "$src\player\alass\ffmpeg\bin\*" "$src\player\alass\bin"
 }
-# WebView2 SDK (Microsoft) for Oranix Web and the Oranix Player library, downloaded from NuGet on first
+# WebView2 SDK (Microsoft) for QwikPlayer Web and the QwikPlayer library, downloaded from NuGet on first
 # build, with the native loader for both x64 and ARM64.
 $sdk = "$src\web\sdk"
 if (!(Test-Path "$sdk\runtimes\win-arm64\native\WebView2Loader.dll")) {
@@ -53,26 +53,26 @@ robocopy "$src\player\library" "$p\library" /MIR /NFL /NDL /NJH /NJS | Out-Null
 Copy-Item "$sdk\*" $p -Recurse -Force
 Copy-Item "$src\player\libmpv\x64\libmpv-2.dll" "$p\libmpv\x64"
 Copy-Item "$src\player\libmpv\arm64\libmpv-2.dll" "$p\libmpv\arm64"
-Copy-Item "$src\player\launcher\oranix-player.ico", "$src\player\LICENSE.libmpv.GPL" $p
-& $csc @common "/win32icon:$src\player\launcher\oranix-player.ico" "/out:$p\Oranix Player.exe" `
+Copy-Item "$src\player\launcher\qwikplayer.ico", "$src\player\LICENSE.libmpv.GPL" $p
+& $csc @common "/win32icon:$src\player\launcher\qwikplayer.ico" "/out:$p\QwikPlayer.exe" `
   "/r:$p\Microsoft.Web.WebView2.Core.dll" "/r:$p\Microsoft.Web.WebView2.WinForms.dll" `
-  /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll "$src\player\launcher\OranixPlayer.cs" "$src\player\launcher\Library.cs" "$src\player\launcher\Intros.cs"
-if ($LASTEXITCODE) { throw 'Oranix Player build failed' }
+  /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll "$src\player\launcher\QwikPlayer.cs" "$src\player\launcher\Library.cs" "$src\player\launcher\Intros.cs"
+if ($LASTEXITCODE) { throw 'QwikPlayer build failed' }
 
-# Oranix Web: browser + live files.
+# QwikPlayer Web: browser + live files.
 $w = "$dist\Web"
 Remove-Item $w -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $w | Out-Null
 Copy-Item "$sdk\*" $w -Recurse
-Copy-Item "$src\web\oranix-player.js", "$src\web\start.html", "$src\web\oranix-web.ico" $w
-& $csc @common "/win32icon:$src\web\oranix-web.ico" "/out:$w\Oranix Web.exe" `
+Copy-Item "$src\web\qwik-player.js", "$src\web\start.html", "$src\web\qwikplayer-web.ico" $w
+& $csc @common "/win32icon:$src\web\qwikplayer-web.ico" "/out:$w\QwikPlayer Web.exe" `
   "/r:$w\Microsoft.Web.WebView2.Core.dll" "/r:$w\Microsoft.Web.WebView2.WinForms.dll" `
-  /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll "$src\web\OranixBrowse.cs"
-if ($LASTEXITCODE) { throw 'Oranix Web build failed' }
+  /r:System.Windows.Forms.dll /r:System.Drawing.dll /r:System.Web.Extensions.dll "$src\web\QwikBrowse.cs"
+if ($LASTEXITCODE) { throw 'QwikPlayer Web build failed' }
 
 if ($Installer) {
-  & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /Q "$src\installer\Oranix.iss"
+  & "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe" /Q "$src\installer\QwikPlayer.iss"
   if ($LASTEXITCODE) { throw 'Installer build failed' }
-  "Installer: $src\installer\Output\OranixSetup.exe"
+  "Installer: $src\installer\Output\QwikPlayerSetup.exe"
 }
 "Built: $dist"

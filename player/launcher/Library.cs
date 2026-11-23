@@ -1,6 +1,6 @@
-// Oranix Player library: finds videos in the library folders, groups episodes into series and
+// QwikPlayer library: finds videos in the library folders, groups episodes into series and
 // seasons, keeps the watch history, and makes episode thumbnails with the bundled ffmpeg.
-// Data lives in %LOCALAPPDATA%\Oranix\Player (history.json, library.json, thumbs\).
+// Data lives in %LOCALAPPDATA%\QwikPlayer\Player (history.json, library.json, thumbs\); see ResolveDataDir.
 
 using System;
 using System.Collections.Generic;
@@ -30,7 +30,9 @@ class HistoryEntry
 
 static class Library
 {
-    public static readonly string DataDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Oranix", "Player");
+    // Every path below hangs off DataDir, and the Lua scripts are told the same folder (script-opts
+    // qwik-data_dir, set in QwikPlayer.Start), so the app and its scripts can never disagree.
+    public static readonly string DataDir = ResolveDataDir();
     public static readonly string ThumbDir = Path.Combine(DataDir, "thumbs");
     static readonly string HistoryFile = Path.Combine(DataDir, "history.json");
     static readonly string SettingsFile = Path.Combine(DataDir, "library.json");
@@ -49,6 +51,23 @@ static class Library
     static readonly object Lock = new object();
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
     static long lastSave;
+
+    // The app was called Oranix before: the first run after the rename moves %LOCALAPPDATA%\Oranix\Player
+    // to %LOCALAPPDATA%\QwikPlayer\Player (a rename on the same drive, never a copy). If the move fails, for
+    // example because a file is in use, the old folder is used for this run and the move is tried again
+    // next time. Nothing may create the new folder before this has run.
+    static string ResolveDataDir()
+    {
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string now = Path.Combine(local, "QwikPlayer", "Player"), old = Path.Combine(local, "Oranix", "Player");
+        if (Directory.Exists(now) || !Directory.Exists(old)) return now;
+        try {
+            Directory.CreateDirectory(Path.Combine(local, "QwikPlayer"));
+            Directory.Move(old, now);
+        } catch { return Directory.Exists(now) ? now : old; }
+        try { Directory.Delete(Path.Combine(local, "Oranix")); } catch { }   // not recursive: only goes when empty
+        return now;
+    }
 
     // ---------- settings and history ----------
 

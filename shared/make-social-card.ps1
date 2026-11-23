@@ -23,17 +23,17 @@ $pg.SurroundColors = @([System.Drawing.Color]::FromArgb(0, 31, 31, 31))
 $g.FillPath($pg, $glow)
 
 # The two app icons
-$p = [System.Drawing.Image]::FromFile("$root\docs\oranix-player-icon.png")
-$w = [System.Drawing.Image]::FromFile("$root\docs\oranix-web-icon.png")
+$p = [System.Drawing.Image]::FromFile("$root\docs\qwikplayer-icon.png")
+$w = [System.Drawing.Image]::FromFile("$root\docs\qwikplayer-web-icon.png")
 $g.DrawImage($p, 96, 150, 150, 150)
 $g.DrawImage($w, 266, 150, 150, 150)
 
-# Wordmark: "Oran" white + "ix" orange
+# Wordmark: "Qwik" white + "Player" orange
 $fBig = New-Object System.Drawing.Font $poppins, 92, ([System.Drawing.FontStyle]::Bold), ([System.Drawing.GraphicsUnit]::Pixel)
 $x = 96; $y = 330
-$g.DrawString('Oran', $fBig, (New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)), $x, $y)
-$oranW = $g.MeasureString('Oran', $fBig, 1000, [System.Drawing.StringFormat]::GenericTypographic).Width
-$g.DrawString('ix', $fBig, (New-Object System.Drawing.SolidBrush (C '#FF7A00')), ($x + $oranW + 6), $y)
+$g.DrawString('Qwik', $fBig, (New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)), $x, $y)
+$qwikW = $g.MeasureString('Qwik', $fBig, 1000, [System.Drawing.StringFormat]::GenericTypographic).Width
+$g.DrawString('Player', $fBig, (New-Object System.Drawing.SolidBrush (C '#FF7A00')), ($x + $qwikW + 6), $y)
 
 $fTag = New-Object System.Drawing.Font $poppins, 30, ([System.Drawing.FontStyle]::Regular), ([System.Drawing.GraphicsUnit]::Pixel)
 $g.DrawString('Play More. Worry Less.', $fTag, (New-Object System.Drawing.SolidBrush (C '#D9D9D9')), 100, 460)
@@ -41,7 +41,7 @@ $fSub = New-Object System.Drawing.Font $poppins, 22, ([System.Drawing.FontStyle]
 $g.DrawString(('Windows  {0}  Linux  {0}  Android  {0}  Chrome  {0}  x64 & ARM  {0}  Open source (MIT)' -f [char]0xB7), $fSub, (New-Object System.Drawing.SolidBrush (C '#9A9A9A')), 100, 515)
 
 # Player screenshot on the right, in a rounded card with a soft shadow
-$shot = [System.Drawing.Image]::FromFile("$root\docs\oranix-player.png")
+$shot = [System.Drawing.Image]::FromFile("$root\docs\qwikplayer-screenshot.png")
 $cx, $cy, $cw = 640, 120, 580
 $ch = [int]($cw * $shot.Height / $shot.Width)
 function Round($x, $y, $w, $h, $r) {

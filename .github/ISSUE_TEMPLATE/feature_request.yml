@@ -1,12 +1,12 @@
 name: Feature idea
-description: Suggest something that would make Oranix better
+description: Suggest something that would make QwikPlayer better
 labels: [enhancement]
 body:
   - type: dropdown
     id: app
     attributes:
       label: Which app?
-      options: [Oranix Player, Oranix Web (Windows), Oranix Web (Android), All of them]
+      options: [QwikPlayer, QwikPlayer Web (Windows), QwikPlayer Web (Android), All of them]
     validations:
       required: true
   - type: textarea

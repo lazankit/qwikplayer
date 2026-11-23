@@ -1,4 +1,4 @@
--- Compact Oranix-style Audio + Subtitles popup (bottom-left), plus a strict
+-- Compact Audio + Subtitles popup (bottom-left), plus a strict
 -- subtitle on/off switch.
 -- Popup:  hover/scroll/Up/Down to move, click/Enter to pick, Esc or click outside to close.
 -- Switch: "toggle-subs" turns subtitles off, or back on with your preferred
@@ -9,7 +9,7 @@ local open, items, hover, offset = false, {}, 1, 0
 local hide_timer
 local MAX_ROWS = 10
 local preferred_sub   -- {lang=, title=} of the last subtitle the user picked
-local subs_on         -- nil until the user chooses; then kept across episodes like Netflix
+local subs_on         -- nil until the user chooses; then kept across episodes
 
 local LANGS = { en = "English", eng = "English", hi = "Hindi", hin = "Hindi", es = "Spanish", spa = "Spanish",
   fr = "French", fre = "French", fra = "French", de = "German", ger = "German", deu = "German",
@@ -54,13 +54,13 @@ end
 local mode = "tracks"   -- "tracks", "speed", or the subtitle tools: "online", "lang", "style"
 local SPEEDS = { 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2 }
 
--- Subtitle tools: state comes from oranix-subs.lua, which does the searching, downloading and syncing.
+-- Subtitle tools: state comes from qwik-subs.lua, which does the searching, downloading and syncing.
 local subs = {}
-local function engine(...) mp.commandv("script-message-to", "oranix_subs", ...) end
+local function engine(...) mp.commandv("script-message-to", "qwik_subs", ...) end
 
 local STYLE = {
   { "Size", "size", { { 30, "Small" }, { 38, "Medium" }, { 48, "Large" }, { 60, "Extra large" }, { 74, "Huge" } } },
-  { "Font", "font", { { "Poppins", "Poppins (Oranix)" }, { "Atkinson Hyperlegible", "Atkinson Hyperlegible · easy to read" },
+  { "Font", "font", { { "Poppins", "Poppins (QwikPlayer)" }, { "Atkinson Hyperlegible", "Atkinson Hyperlegible · easy to read" },
                       { "OpenDyslexic", "OpenDyslexic · dyslexia-friendly" }, { "Lexend", "Lexend · reading-friendly" },
                       { "sans-serif", "System sans" } } },
   { "Background", "background", { { "outline", "Outline" }, { "shadow", "Soft shadow" }, { "box", "Dark box" } } },
@@ -366,7 +366,7 @@ mp.add_key_binding(nil, "toggle-subs", toggle_subs)
 mp.add_key_binding(nil, "online", function() if open and mode == "online" then close() else engine("search"); show("online") end end)
 mp.add_key_binding(nil, "style", function() toggle("style") end)
 mp.add_key_binding(nil, "sync", function() engine("sync") end)
-mp.observe_property("user-data/oranix-subs", "native", function(_, v)
+mp.observe_property("user-data/qwik-subs", "native", function(_, v)
   subs = v or {}
   if open and (mode == "online" or mode == "lang" or mode == "style") then
     local keep = hover

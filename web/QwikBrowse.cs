@@ -1,6 +1,6 @@
-// Oranix Web: a light WebView2 browser with an ad/popup/redirect shield where any web
-// video (YouTube etc.) plays in the Oranix player UI (oranix-player.js, injected into every frame).
-// Separate from the Oranix mpv player and from CineShell. Build: build.bat (.NET Framework 4.8).
+// QwikPlayer Web: a light WebView2 browser with an ad/popup/redirect shield where any web
+// video (YouTube etc.) plays in the QwikPlayer UI (qwik-player.js, injected into every frame).
+// Separate from the QwikPlayer desktop app (mpv) and from CineShell. Build: build.bat (.NET Framework 4.8).
 
 using System;
 using System.Collections.Generic;
@@ -14,9 +14,9 @@ using System.Windows.Forms;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
-class OranixBrowse : Form
+class QwikBrowse : Form
 {
-    const string Home = "https://oranix.home/index.html";   // start page (saved sites + history), served from the profile folder
+    const string Home = "https://qwik.home/index.html";   // start page (saved sites + history), served from the profile folder
     static readonly Color Charcoal = Color.FromArgb(31, 31, 31), Orange = Color.FromArgb(255, 122, 0);
 
     // Ad, pop-under and tracking networks. Matched against the request host and its parents.
@@ -75,14 +75,31 @@ class OranixBrowse : Form
     readonly Pill star = new Pill();
     FormWindowState restoreState;
     string snapPath;
-    bool playerOn;   // the page reports when the Oranix player is open
+    bool playerOn;   // the page reports when player mode is open
 
     // Saved sites and history, kept in profile\library.json.
     class Entry { public string Url; public string Title; public DateTime Time; }
     class Library { public List<Entry> Saved = new List<Entry>(); public List<Entry> History = new List<Entry>(); }
     Library lib = new Library();
     // User data (cookies, saved sites, history) lives outside the install folder, so updates/uninstall don't touch it.
-    static string ProfileDir { get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Oranix", "Web"); } }
+    static string profileDir;
+    static string ProfileDir { get { return profileDir ?? (profileDir = ResolveProfileDir()); } }
+    // The app was called Oranix before: the first run after the rename moves %LOCALAPPDATA%\Oranix\Web to
+    // %LOCALAPPDATA%\QwikPlayer\Web (a rename on the same drive, never a copy). If the move fails, for example
+    // because a file is in use, the old folder is used for this run and the move is tried again next time.
+    // Nothing may create the new folder before this has run.
+    static string ResolveProfileDir()
+    {
+        string local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        string now = Path.Combine(local, "QwikPlayer", "Web"), old = Path.Combine(local, "Oranix", "Web");
+        if (Directory.Exists(now) || !Directory.Exists(old)) return now;
+        try {
+            Directory.CreateDirectory(Path.Combine(local, "QwikPlayer"));
+            Directory.Move(old, now);
+        } catch { return Directory.Exists(now) ? now : old; }
+        try { Directory.Delete(Path.Combine(local, "Oranix")); } catch { }   // not recursive: only goes when empty
+        return now;
+    }
     static string LibraryFile { get { return Path.Combine(ProfileDir, "library.json"); } }
     static string StartDir { get { return Path.Combine(ProfileDir, "start"); } }
 
@@ -90,7 +107,7 @@ class OranixBrowse : Form
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr SendMessage(IntPtr h, int msg, IntPtr w, string l);
     [DllImport("dwmapi.dll")] static extern int DwmSetWindowAttribute(IntPtr h, int attr, ref int value, int size);
 
-    // Dark title bar in Oranix charcoal (Windows 11), so it matches the toolbar.
+    // Dark title bar in QwikPlayer charcoal (Windows 11), so it matches the toolbar.
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
@@ -103,21 +120,22 @@ class OranixBrowse : Form
     [STAThread]
     static void Main(string[] args)
     {
+        profileDir = ResolveProfileDir();   // first of all: settle the data folder (moves the pre-rename one on the first run)
         SetProcessDPIAware();
         Application.EnableVisualStyles();
-        // Test mode: OranixBrowse.exe <url> --snap <file.png>  opens player mode, saves a snapshot, exits.
+        // Test mode: QwikBrowse.exe <url> --snap <file.png>  opens player mode, saves a snapshot, exits.
         int snap = Array.IndexOf(args, "--snap");
-        Application.Run(new OranixBrowse(args.Length > 0 && args[0] != "--snap" ? args[0] : Home,
+        Application.Run(new QwikBrowse(args.Length > 0 && args[0] != "--snap" ? args[0] : Home,
             snap >= 0 && snap + 1 < args.Length ? args[snap + 1] : null));
     }
 
     static string AppDir { get { return Path.GetDirectoryName(Application.ExecutablePath); } }
 
-    OranixBrowse(string startUrl, string snapFile)
+    QwikBrowse(string startUrl, string snapFile)
     {
         snapPath = snapFile;
-        Text = "Oranix Web";
-        string ico = Path.Combine(AppDir, "oranix-web.ico");
+        Text = "QwikPlayer Web";
+        string ico = Path.Combine(AppDir, "qwikplayer-web.ico");
         if (File.Exists(ico)) Icon = new Icon(ico);
         BackColor = Charcoal;
         StartPosition = FormStartPosition.CenterScreen;
@@ -147,10 +165,10 @@ class OranixBrowse : Form
         };
         Func<DockStyle, int, Panel> gap = (side, w) => new Panel { Dock = side, Width = px(w), BackColor = Charcoal };
 
-        var player = new Pill { Glyph = "", IconFont = new Font("Segoe Fluent Icons", 9f), Text = "Oranix player",
+        var player = new Pill { Glyph = "", IconFont = new Font("Segoe Fluent Icons", 9f), Text = "QwikPlayer",
             Font = new Font("Segoe UI Semibold", 10f), Dock = DockStyle.Right, PadX = px(16), Radius = px(18),
             Fill = Orange, HoverFill = Color.FromArgb(255, 143, 38) };
-        tips.SetToolTip(player, "Open this page's video in the full Oranix player (O) · Esc to go back");
+        tips.SetToolTip(player, "Open this page's video in the full QwikPlayer window (O) · Esc to go back");
         player.Click += (o, e) => TogglePlayer();
 
         shield.Glyph = "";
@@ -223,7 +241,7 @@ class OranixBrowse : Form
             if (!playerOn || snapPath != null || web.CoreWebView2 == null || e.CloseReason != CloseReason.UserClosing) return;
             e.Cancel = true;
             playerOn = false;
-            web.CoreWebView2.ExecuteScriptAsync("window.__oranixToggle && window.__oranixToggle()");
+            web.CoreWebView2.ExecuteScriptAsync("window.__qwikToggle && window.__qwikToggle()");
         };
 
         LoadLibrary();
@@ -257,19 +275,19 @@ class OranixBrowse : Form
             if (e.IsSuccess) AddHistory(cw.Source, cw.DocumentTitle);
         };
         cw.SourceChanged += (o, e) => { address.Text = cw.Source.StartsWith(Home) ? "" : cw.Source; playerOn = false; UpdateStar(); };
-        cw.DocumentTitleChanged += (o, e) => { Text = cw.Source.StartsWith(Home) ? "Oranix Web" : cw.DocumentTitle + " - Oranix Web"; AddHistory(cw.Source, cw.DocumentTitle); };
+        cw.DocumentTitleChanged += (o, e) => { Text = cw.Source.StartsWith(Home) ? "QwikPlayer Web" : cw.DocumentTitle + " - QwikPlayer Web"; AddHistory(cw.Source, cw.DocumentTitle); };
         cw.WebMessageReceived += OnWebMessage;
         Directory.CreateDirectory(StartDir);
-        cw.SetVirtualHostNameToFolderMapping("oranix.home", StartDir, CoreWebView2HostResourceAccessKind.Allow);
+        cw.SetVirtualHostNameToFolderMapping("qwik.home", StartDir, CoreWebView2HostResourceAccessKind.Allow);
         cw.ContainsFullScreenElementChanged += (o, e) => SetFullscreen(cw.ContainsFullScreenElement);
         await cw.AddScriptToExecuteOnDocumentCreatedAsync(GuardJs);
-        playerScriptId = await cw.AddScriptToExecuteOnDocumentCreatedAsync(File.ReadAllText(Path.Combine(AppDir, "oranix-player.js")));
+        playerScriptId = await cw.AddScriptToExecuteOnDocumentCreatedAsync(File.ReadAllText(Path.Combine(AppDir, "qwik-player.js")));
         WatchLiveFiles();
 
         Go(url);
     }
 
-    // The page asked for fullscreen (Oranix player F / double-click): make the window borderless and hide the toolbar.
+    // The page asked for fullscreen (F / double-click in the QwikPlayer bar): make the window borderless and hide the toolbar.
     void SetFullscreen(bool fs)
     {
         bar.Visible = !fs;
@@ -286,8 +304,8 @@ class OranixBrowse : Form
 
     async void TogglePlayer()
     {
-        string r = await web.CoreWebView2.ExecuteScriptAsync("window.__oranixToggle ? window.__oranixToggle() : null");
-        if (r == "null") MessageBox.Show(this, "No video on this page yet.", "Oranix Web");
+        string r = await web.CoreWebView2.ExecuteScriptAsync("window.__qwikToggle ? window.__qwikToggle() : null");
+        if (r == "null") MessageBox.Show(this, "No video on this page yet.", "QwikPlayer Web");
         web.Focus();
     }
 
@@ -352,7 +370,7 @@ class OranixBrowse : Form
     }
 
     // ---------- live editing ----------
-    // oranix-player.js (the in-page player) and start.html (the start page) are read from the app
+    // qwik-player.js (the in-page player) and start.html (the start page) are read from the app
     // folder. When either is saved, the open page reloads with the change - no rebuild or restart.
     string playerScriptId;
     FileSystemWatcher liveWatcher;
@@ -365,7 +383,7 @@ class OranixBrowse : Form
             liveDebounce.Stop();
             var cw = web.CoreWebView2;
             try {
-                string js = File.ReadAllText(Path.Combine(AppDir, "oranix-player.js"));
+                string js = File.ReadAllText(Path.Combine(AppDir, "qwik-player.js"));
                 cw.RemoveScriptToExecuteOnDocumentCreated(playerScriptId);
                 playerScriptId = await cw.AddScriptToExecuteOnDocumentCreatedAsync(js);
             } catch (IOException) { liveDebounce.Start(); return; }   // file still being written; try again shortly
@@ -373,7 +391,7 @@ class OranixBrowse : Form
         };
         liveWatcher = new FileSystemWatcher(AppDir) { NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName, EnableRaisingEvents = true };
         FileSystemEventHandler changed = (o, e) => {
-            if (e.Name == "oranix-player.js" || e.Name == "start.html") BeginInvoke((Action)(() => { liveDebounce.Stop(); liveDebounce.Start(); }));
+            if (e.Name == "qwik-player.js" || e.Name == "start.html") BeginInvoke((Action)(() => { liveDebounce.Stop(); liveDebounce.Start(); }));
         };
         liveWatcher.Changed += changed;
         liveWatcher.Created += changed;
@@ -490,8 +508,8 @@ class OranixBrowse : Form
         await System.Threading.Tasks.Task.Delay(6000);
         // Test mode shows the inline skin (default); add "--full" to snapshot the full window instead.
         string on = await web.CoreWebView2.ExecuteScriptAsync(Environment.GetCommandLineArgs().Contains("--full")
-            ? "window.__oranixToggle ? window.__oranixToggle() : 'no-script'"
-            : "document.documentElement.classList.contains('oranix-skin') ? 'inline' : 'none'");
+            ? "window.__qwikToggle ? window.__qwikToggle() : 'no-script'"
+            : "document.documentElement.classList.contains('qwik-skin') ? 'inline' : 'none'");
         await System.Threading.Tasks.Task.Delay(4000);
         // Hover over the video so the auto-hiding controls are in the snapshot.
         await web.CoreWebView2.CallDevToolsProtocolMethodAsync("Input.dispatchMouseEvent", "{\"type\":\"mouseMoved\",\"x\":300,\"y\":260}");

@@ -1,4 +1,4 @@
--- Netflix-style "Next Episode" button: appears in the last 45 s of an episode (when the playlist has
+-- "Next Episode" button: appears in the last 45 s of an episode (when the playlist has
 -- a next one), counts down to the automatic switch, and plays the next episode when clicked.
 -- Ctrl+N (script-binding next_episode/go) does the same at any time.
 
@@ -76,9 +76,9 @@ local function tick()
   local nxt = next_entry()
   if not dur or not pos or not nxt or dur < 300 then hide() return end
   local left, total = dur - pos, SHOW_BEFORE
-  local credits = mp.get_property_native("user-data/oranix/credits")
+  local credits = mp.get_property_native("user-data/qwik/credits")
   if type(credits) == "number" and credits > 0 then
-    -- End credits found (skip-intro.lua): offer the next episode as they start and play it 10 s later, like Netflix.
+    -- End credits found (skip-intro.lua): offer the next episode as they start and play it 10 s later.
     if pos < credits - 0.5 then hide() return end
     total = 10
     left = credits + total - pos

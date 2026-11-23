@@ -1,12 +1,12 @@
 name: Bug report
-description: Something in Oranix doesn't work the way it should
+description: Something in QwikPlayer doesn't work the way it should
 labels: [bug]
 body:
   - type: dropdown
     id: app
     attributes:
       label: Which app?
-      options: [Oranix Player (Windows), Oranix Web (Windows), Oranix Web (Android), Installer]
+      options: [QwikPlayer (Windows), QwikPlayer Web (Windows), QwikPlayer Web (Android), Installer]
     validations:
       required: true
   - type: textarea
@@ -25,7 +25,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Oranix version and OS / phone
+      label: QwikPlayer version and OS / phone
       placeholder: "1.0.0, Windows 11 / Nothing Phone 3, Android 15"
     validations:
       required: true

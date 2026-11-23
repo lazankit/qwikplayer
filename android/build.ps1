@@ -1,4 +1,4 @@
-# Builds Oranix Web for Android -> android\out\OranixWeb.apk (no Gradle: javac + Android build-tools).
+# Builds QwikPlayer Web for Android -> android\out\QwikPlayerWeb.apk (no Gradle: javac + Android build-tools).
 # Needs the JDK and Android SDK in %USERPROFILE%\android-tools (see setup-tools.ps1).
 # The player script and start page are shared with the Windows app (..\web).
 $ErrorActionPreference = 'Stop'
@@ -13,7 +13,7 @@ Remove-Item $out -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force "$out\assets", "$out\gen", "$out\classes", "$out\dex" | Out-Null
 function Check($what) { if ($LASTEXITCODE) { throw "$what failed" } }
 
-# Launcher icon at every screen density, from the Oranix Web icon.
+# Launcher icon at every screen density, from the QwikPlayer Web icon.
 Add-Type -AssemblyName System.Drawing
 $icon = [System.Drawing.Image]::FromFile("$src\icon.png")
 foreach ($d in @{ mdpi = 48; hdpi = 72; xhdpi = 96; xxhdpi = 144; xxxhdpi = 192 }.GetEnumerator()) {
@@ -25,7 +25,7 @@ foreach ($d in @{ mdpi = 48; hdpi = 72; xhdpi = 96; xxhdpi = 144; xxxhdpi = 192 
 }
 $icon.Dispose()
 Copy-Item "$src\res\*" "$out\res" -Recurse -Force   # adaptive + themed (monochrome) icon, colours
-Copy-Item "$src\..\web\oranix-player.js", "$src\..\web\start.html" "$out\assets"
+Copy-Item "$src\..\web\qwik-player.js", "$src\..\web\start.html" "$out\assets"
 
 & "$bt\aapt2.exe" compile --dir "$out\res" -o "$out\res.zip"; Check 'aapt2 compile'
 & "$bt\aapt2.exe" link -o "$out\base.apk" -I $jar --manifest "$src\AndroidManifest.xml" -A "$out\assets" --java "$out\gen" "$out\res.zip"; Check 'aapt2 link'
@@ -40,11 +40,14 @@ Push-Location "$out\dex"; & jar -uf "$out\base.apk" classes.dex; Pop-Location; C
 
 # Signing key: created on first build and never committed (see .gitignore). Keep it - updates must be
 # signed with the same key. Set ORANIX_KEYSTORE_PASS to choose its password.
+# The file name, the variable, the default password and the alias still say "oranix" (the app's old name)
+# on purpose: they open the key that already exists. Rename any of them and this script quietly creates
+# a new key, and an APK signed with a new key cannot be installed over a copy signed with the old one.
 $ks = "$src\oranix-release.jks"
 $pass = if ($env:ORANIX_KEYSTORE_PASS) { $env:ORANIX_KEYSTORE_PASS } else { 'oranix-local' }
 if (!(Test-Path $ks)) {
   & keytool -genkeypair -keystore $ks -alias oranix -keyalg RSA -keysize 2048 -validity 10000 `
     -storepass $pass -keypass $pass -dname "CN=Oranix, O=Oranix"; Check 'keytool'
 }
-& "$bt\apksigner.bat" sign --ks $ks --ks-pass "pass:$pass" --out "$out\OranixWeb.apk" "$out\aligned.apk"; Check 'apksigner'
-"APK: $out\OranixWeb.apk"
+& "$bt\apksigner.bat" sign --ks $ks --ks-pass "pass:$pass" --out "$out\QwikPlayerWeb.apk" "$out\aligned.apk"; Check 'apksigner'
+"APK: $out\QwikPlayerWeb.apk"

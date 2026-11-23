@@ -1,7 +1,7 @@
-# Draws an Oranix app icon as a multi-size .ico, in the brand sheet's two colourways:
-#   full (default): orange rounded square + white play mark   -> Oranix Player
-#   dark:           charcoal rounded square + orange play mark -> Oranix Web
-param([string]$Variant = 'full', [string]$Out = (Join-Path $PSScriptRoot '..\oranix\oranix.ico'))
+# Draws a QwikPlayer app icon as a multi-size .ico, in the brand sheet's two colourways:
+#   full (default): orange rounded square + white play mark   -> QwikPlayer
+#   dark:           charcoal rounded square + orange play mark -> QwikPlayer Web
+param([string]$Variant = 'full', [string]$Out = (Join-Path $PSScriptRoot '..\qwikplayer\qwikplayer.ico'))
 Add-Type -AssemblyName System.Drawing
 $out = $Out
 $dark = $Variant -eq 'dark'

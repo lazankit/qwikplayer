@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Notflix</title>
+<title>QwikPlayer</title>
 <style>
-@font-face { font-family: Poppins; src: url(https://oranix.fonts/Poppins-Regular.ttf); font-weight: 400; }
-@font-face { font-family: Poppins; src: url(https://oranix.fonts/Poppins-SemiBold.ttf); font-weight: 600; }
-@font-face { font-family: Poppins; src: url(https://oranix.fonts/Poppins-Bold.ttf); font-weight: 700; }
+@font-face { font-family: Poppins; src: url(https://qwik.fonts/Poppins-Regular.ttf); font-weight: 400; }
+@font-face { font-family: Poppins; src: url(https://qwik.fonts/Poppins-SemiBold.ttf); font-weight: 600; }
+@font-face { font-family: Poppins; src: url(https://qwik.fonts/Poppins-Bold.ttf); font-weight: 700; }
 :root { --bg: #141414; --panel: #1f1f1f; --line: rgba(255,255,255,.08); --text: #f2f2f2; --dim: #a3a3a3; --faint: #6b6b6b;
   --accent: #e50914; --accent2: #ff3d47; --pad: clamp(20px, 4vw, 56px); --card: clamp(220px, 19vw, 300px); }
 * { box-sizing: border-box; }
@@ -134,7 +134,7 @@ main { position: relative; z-index: 2; margin-top: -9vh; padding-bottom: 60px; }
 .hrow .x:hover { color: #fff; background: rgba(255,255,255,.1); }
 .missing { opacity: .45; }
 
-/* Netflix-style hover actions and Top 10 */
+/* Hover actions and Top 10 */
 .card:hover, .card:focus-visible { transform: scale(1.1); transition: transform .25s ease .15s; }
 .art .hov { position: absolute; left: 10px; bottom: 12px; z-index: 3; display: flex; gap: 8px; opacity: 0; transform: translateY(6px); transition: .2s ease .15s; }
 .card:hover .hov, .card:focus-visible .hov { opacity: 1; transform: none; }
@@ -162,7 +162,7 @@ main { position: relative; z-index: 2; margin-top: -9vh; padding-bottom: 60px; }
 </head>
 <body>
 <nav id="nav">
-  <div class="logo">NOTFLIX</div>
+  <div class="logo">QWIKPLAYER</div>
   <div class="tabs">
     <button data-go="home">Home</button>
     <button data-go="series">Series</button>
@@ -196,7 +196,7 @@ const app = document.getElementById('app');
 const post = m => window.chrome && chrome.webview && chrome.webview.postMessage(m);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const pad = n => String(n).padStart(2, '0');
-const thumb = k => S.thumbs.has(k) ? `url('https://oranix.thumbs/${k}.jpg')` : '';
+const thumb = k => S.thumbs.has(k) ? `url('https://qwik.thumbs/${k}.jpg')` : '';
 const H = p => S.history[p];
 const dur = it => S.durations[it.key] || (H(it.path) && H(it.path).dur) || 0;
 const progress = it => { const h = H(it.path); if (!h) return 0; if (h.watched) return 1; const d = h.dur || dur(it); return d ? Math.min(1, h.pos / d) : 0; };
@@ -390,7 +390,7 @@ function pageHistory() {
 
 function pageFolders() {
   return `<div class="page fade"><div class="title-row"><h1>Library folders</h1><div class="sp"></div><button class="btn accent" data-cmd="addFolder">${ICON.plus}Add folder</button></div>
-    <div class="folders"><p class="s" style="color:var(--dim);margin:0 0 16px">Notflix looks in these folders (and the folders inside them) for series and movies. Episodes named like <b>S01E05</b> are grouped into series and seasons.</p>
+    <div class="folders"><p class="s" style="color:var(--dim);margin:0 0 16px">QwikPlayer looks in these folders (and the folders inside them) for series and movies. Episodes named like <b>S01E05</b> are grouped into series and seasons.</p>
     ${S.folders.map(f => `<div class="folder"><span>${esc(f)}</span><button class="x icon-btn" title="Remove" data-unfolder="${esc(f)}">${ICON.x}</button></div>`).join('')}</div></div>`;
 }
 function pageEmpty() {

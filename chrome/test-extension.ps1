@@ -1,8 +1,8 @@
-# Loads the Oranix Chrome extension into a headless Edge, opens a YouTube video and asks the page
-# (over the DevTools protocol) whether the Oranix inline skin attached. Also saves a screenshot.
+# Loads the QwikPlayer Chrome extension into a headless Edge, opens a YouTube video and asks the page
+# (over the DevTools protocol) whether the QwikPlayer inline skin attached. Also saves a screenshot.
 param([string]$Ext, [string]$Shot)
 $edge = 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
-$prof = Join-Path $env:TEMP ('oranix-ext-test-' + [guid]::NewGuid())
+$prof = Join-Path $env:TEMP ('qwik-ext-test-' + [guid]::NewGuid())
 $url = 'https://www.youtube.com/watch?v=aqz-KE-bpKQ'
 $p = Start-Process $edge -ArgumentList "--headless=new", "--user-data-dir=`"$prof`"", "--load-extension=`"$Ext`"", "--disable-extensions-except=`"$Ext`"",
   "--remote-debugging-port=9333", "--window-size=1400,900", "--autoplay-policy=no-user-gesture-required", "--mute-audio", $url -PassThru
@@ -29,7 +29,7 @@ try {
       if ($o.id -eq $script:id) { return $o.result }
     }
   }
-  $res = Cdp 'Runtime.evaluate' @{ expression = "JSON.stringify({ skin: document.documentElement.classList.contains('oranix-skin'), oranix: !!window.__oranix, video: !!document.querySelector('video'), bar: !!document.querySelector('oranix-player') })"; returnByValue = $true }
+  $res = Cdp 'Runtime.evaluate' @{ expression = "JSON.stringify({ skin: document.documentElement.classList.contains('qwik-skin'), qwik: !!window.__qwik, video: !!document.querySelector('video'), bar: !!document.querySelector('qwik-player') })"; returnByValue = $true }
   "page check: " + $res.result.value
   [void](Cdp 'Input.dispatchMouseEvent' @{ type = 'mouseMoved'; x = 400; y = 300 })
   Start-Sleep -Milliseconds 500

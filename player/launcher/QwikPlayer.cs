@@ -1,6 +1,6 @@
-// Oranix Player: a Windows video player built on libmpv (bundled, x64 + ARM64).
+// QwikPlayer: a Windows video player built on libmpv (bundled, x64 + ARM64).
 // The app owns the window (native dark title bar, icon, fullscreen, maximize, drag & drop) and embeds
-// mpv's renderer in it; the controls are uosc plus Oranix's own Lua scripts from <app>\config.
+// mpv's renderer in it; the controls are uosc plus the app's own Lua scripts from <app>\config.
 // Live editing: when anything in config\ changes, the player reloads at the same second.
 
 using System;
@@ -18,8 +18,8 @@ using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
 // Name shown by Windows (Open with, taskbar, Task Manager).
-[assembly: System.Reflection.AssemblyTitle("Notflix Player")]
-[assembly: System.Reflection.AssemblyProduct("Notflix Player")]
+[assembly: System.Reflection.AssemblyTitle("QwikPlayer")]
+[assembly: System.Reflection.AssemblyProduct("QwikPlayer")]
 
 static class Mpv
 {
@@ -76,7 +76,7 @@ static class Mpv
     }
 }
 
-class OranixPlayer : Form
+class QwikPlayer : Form
 {
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)] static extern bool SetDllDirectory(string path);
     [DllImport("user32.dll")] static extern bool SetProcessDPIAware();
@@ -107,17 +107,19 @@ class OranixPlayer : Form
     [STAThread]
     static void Main(string[] args)
     {
+        // First of all: settle the data folder (moves the pre-rename one on the first run, see Library.ResolveDataDir).
+        GC.KeepAlive(Library.DataDir);
         SetProcessDPIAware();
         // One build for x64 and Windows on ARM: load the libmpv that matches this process.
         SetDllDirectory(Path.Combine(AppDir, "libmpv", RuntimeInformation.ProcessArchitecture == Architecture.Arm64 ? "arm64" : "x64"));
         Application.EnableVisualStyles();
-        Application.Run(new OranixPlayer(args));
+        Application.Run(new QwikPlayer(args));
     }
 
-    OranixPlayer(string[] files)
+    QwikPlayer(string[] files)
     {
-        Text = "Notflix Player";
-        string ico = Path.Combine(AppDir, "oranix-player.ico");
+        Text = "QwikPlayer";
+        string ico = Path.Combine(AppDir, "qwikplayer.ico");
         if (File.Exists(ico)) Icon = new Icon(ico);
         BackColor = Color.Black;
         StartPosition = FormStartPosition.CenterScreen;
@@ -173,7 +175,7 @@ class OranixPlayer : Form
         WatchConfig();
     }
 
-    // Dark title bar in Oranix charcoal (Windows 11).
+    // Dark title bar in QwikPlayer charcoal (Windows 11).
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
@@ -189,11 +191,14 @@ class OranixPlayer : Form
         Action<string, string> opt = (k, v) => Mpv.mpv_set_option_string(mpv, Mpv.U8(k), Mpv.U8(v));
         opt("config-dir", ConfigDir);
         opt("config", "yes");
+        // Where the Lua scripts read and write their data. %n% is mpv's length-prefixed quoting (n bytes follow),
+        // so a path with spaces, commas or '=' arrives intact.
+        opt("script-opts", "qwik-data_dir=%" + Encoding.UTF8.GetByteCount(Library.DataDir) + "%" + Library.DataDir);
         opt("wid", screen.Handle.ToInt64().ToString());
         opt("input-default-bindings", "yes");
         opt("input-vo-keyboard", "yes");
         opt("force-window", "yes");
-        opt("idle", "yes");              // stay open with the Oranix start screen when nothing plays
+        opt("idle", "yes");              // stay open with the QwikPlayer start screen when nothing plays
         opt("border", "yes");            // the app's own title bar replaces uosc's window buttons
         opt("terminal", "no");
         if (startAt != null) opt("start", startAt);
@@ -205,7 +210,7 @@ class OranixPlayer : Form
         Mpv.mpv_observe_property(mpv, 4, Mpv.U8("window-minimized"), Mpv.FORMAT_FLAG);
         Mpv.mpv_observe_property(mpv, 5, Mpv.U8("idle-active"), Mpv.FORMAT_FLAG);
         for (int i = 0; i < files.Count; i++) Mpv.Command(mpv, "loadfile", files[i], i == 0 ? "replace" : "append");
-        if (startAt != null) ThreadPool.QueueUserWorkItem(_ => { Thread.Sleep(1200); var h = mpv; if (h != IntPtr.Zero) Mpv.Command(h, "show-text", "✓ Notflix Player updated", "2000"); });
+        if (startAt != null) ThreadPool.QueueUserWorkItem(_ => { Thread.Sleep(1200); var h = mpv; if (h != IntPtr.Zero) Mpv.Command(h, "show-text", "✓ QwikPlayer updated", "2000"); });
 
         IntPtr ctx = mpv;
         new Thread(() => EventLoop(ctx)) { IsBackground = true, Name = "mpv events" }.Start();
@@ -241,7 +246,7 @@ class OranixPlayer : Form
     {
         switch (name) {
             case "media-title":
-                Text = string.IsNullOrEmpty(str) ? "Notflix Player" : str + " - Notflix Player";
+                Text = string.IsNullOrEmpty(str) ? "QwikPlayer" : str + " - QwikPlayer";
                 if (!string.IsNullOrEmpty(str)) EnsureSeriesPlaylist();
                 break;
             case "idle-active": ShowLibrary(flag); break;
@@ -281,11 +286,11 @@ class OranixPlayer : Form
         cw.Settings.AreDevToolsEnabled = false;
         cw.Settings.IsZoomControlEnabled = false;
         cw.Settings.IsStatusBarEnabled = false;
-        cw.SetVirtualHostNameToFolderMapping("oranix.library", page, CoreWebView2HostResourceAccessKind.Allow);
-        cw.SetVirtualHostNameToFolderMapping("oranix.thumbs", Library.ThumbDir, CoreWebView2HostResourceAccessKind.Allow);
-        cw.SetVirtualHostNameToFolderMapping("oranix.fonts", Path.Combine(ConfigDir, "fonts"), CoreWebView2HostResourceAccessKind.Allow);
+        cw.SetVirtualHostNameToFolderMapping("qwik.library", page, CoreWebView2HostResourceAccessKind.Allow);
+        cw.SetVirtualHostNameToFolderMapping("qwik.thumbs", Library.ThumbDir, CoreWebView2HostResourceAccessKind.Allow);
+        cw.SetVirtualHostNameToFolderMapping("qwik.fonts", Path.Combine(ConfigDir, "fonts"), CoreWebView2HostResourceAccessKind.Allow);
         cw.WebMessageReceived += OnLibraryMessage;
-        cw.Navigate("https://oranix.library/index.html");
+        cw.Navigate("https://qwik.library/index.html");
         // Live editing of the page: reload when library\ changes.
         var w = new FileSystemWatcher(page) { EnableRaisingEvents = true, SynchronizingObject = this, NotifyFilter = NotifyFilters.LastWrite | NotifyFilters.FileName };
         w.Changed += (o, e) => cw.Reload();
@@ -294,7 +299,7 @@ class OranixPlayer : Form
 
     void ShowLibrary(bool show)
     {
-        if (show) { Text = "Notflix Player"; ShowCursor(); cursorTimer.Stop(); }
+        if (show) { Text = "QwikPlayer"; ShowCursor(); cursorTimer.Stop(); }
         if (!libReady && show) { lib.Visible = lib.Enabled = lib.CoreWebView2 != null; return; }
         lib.Visible = show;
         lib.Enabled = show;   // a disabled window can't hold keyboard focus, so keys reach the video

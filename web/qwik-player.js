@@ -1,9 +1,9 @@
-// Oranix in-page player: puts Oranix-style controls on the page's main <video> (inline), with a
-// full-window mode (same keys/gestures as the Oranix mpv setup). Also removes YouTube video ads.
-// Injected into every frame by Oranix Browse, before the page's own scripts run.
+// QwikPlayer in-page player: puts the QwikPlayer controls on the page's main <video> (inline), with a
+// full-window mode (same keys/gestures as the QwikPlayer desktop app). Also removes YouTube video ads.
+// Injected into every frame by QwikPlayer Web, before the page's own scripts run.
 (() => {
-  if (window.__oranix) return;
-  window.__oranix = true;
+  if (window.__qwik) return;
+  window.__qwik = true;
 
   // ---------- YouTube ad removal ----------
   // YouTube's video ads come from the same servers as the videos, so blocking requests can't stop
@@ -191,18 +191,18 @@ ytd-enforcement-message-view-model,tp-yt-iron-overlay-backdrop{display:none!impo
   // video - or the iframe that holds it - is made visible and pinned to the window. Hiding beats
   // stacking tricks: nothing the site draws can end up on top of the picture.
   const PAGE_CSS = `
-html.oranix-on,html.oranix-on body{background:#000!important;overflow:hidden!important}
-html.oranix-on body{visibility:hidden!important}
-video[data-oranix],iframe[data-oranix-frame]{visibility:visible!important;position:fixed!important;left:0!important;top:0!important;
+html.qwik-on,html.qwik-on body{background:#000!important;overflow:hidden!important}
+html.qwik-on body{visibility:hidden!important}
+video[data-qwik],iframe[data-qwik-frame]{visibility:visible!important;position:fixed!important;left:0!important;top:0!important;
   right:auto!important;bottom:auto!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;
   margin:0!important;border:0!important;z-index:2147483646!important;transform:none!important;opacity:1!important}
-video[data-oranix]{object-fit:contain!important;background:#000!important}
-[data-oranix-anc]{transform:none!important;filter:none!important;perspective:none!important;contain:none!important;
+video[data-qwik]{object-fit:contain!important;background:#000!important}
+[data-qwik-anc]{transform:none!important;filter:none!important;perspective:none!important;contain:none!important;
   will-change:auto!important;clip-path:none!important;mask:none!important;content-visibility:visible!important}
-html.oranix-skin :is(.ytp-chrome-bottom,.ytp-chrome-top,.ytp-gradient-bottom,.ytp-gradient-top,.ytp-large-play-button,.ytp-pause-overlay,
+html.qwik-skin :is(.ytp-chrome-bottom,.ytp-chrome-top,.ytp-gradient-bottom,.ytp-gradient-top,.ytp-large-play-button,.ytp-pause-overlay,
   .jw-controlbar,.jw-display,.vjs-control-bar,.vjs-big-play-button,.plyr__controls,.plyr__control--overlaid,.fp-ui,.mejs__controls)
   {opacity:0!important;pointer-events:none!important}
-html.oranix-on .ytp-caption-window-container{visibility:visible!important;position:fixed!important;left:0!important;top:0!important;
+html.qwik-on .ytp-caption-window-container{visibility:visible!important;position:fixed!important;left:0!important;top:0!important;
   width:100vw!important;height:calc(100vh - 110px)!important;z-index:2147483646!important;pointer-events:none!important}`;
 
   const TOP = window === window.top;
@@ -244,12 +244,12 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     return { next: n ? n.label : '', prev: p ? p.label : '' };
   }
   function goNav(dir) {
-    if (!TOP) return top.postMessage({ oranix: 'go', dir: dir }, '*');
+    if (!TOP) return top.postMessage({ qwik: 'go', dir: dir }, '*');
     const nav = findNav(dir);
     if (!nav) return toast('No ' + (dir === 'next' ? 'next' : 'previous') + ' video found');
     // From the full window, stay in the full window on the next page/video (inline re-skins by itself).
     if (on || enlargedFrame) {
-      try { sessionStorage.setItem('oranix-continue', String(Date.now())); } catch (_) {}
+      try { sessionStorage.setItem('qwik-continue', String(Date.now())); } catch (_) {}
       continueNext = true;
     }
     toast((dir === 'next' ? 'Next: ' : 'Previous: ') + nav.label);
@@ -257,7 +257,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
   }
   let continueNext = false;
 
-  // Netflix-style "Up next" card when the video ends.
+  // "Up next" card when the video ends.
   let upnext = null, upnextT = 0;
   function showUpNext() {
     const nav = currentNav();
@@ -286,11 +286,11 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     (document.head || document.documentElement).appendChild(pageStyle);
   }
   function markAncestors(el) {
-    for (let a = el.parentElement; a && a !== document.documentElement; a = a.parentElement) a.setAttribute('data-oranix-anc', '');
+    for (let a = el.parentElement; a && a !== document.documentElement; a = a.parentElement) a.setAttribute('data-qwik-anc', '');
   }
   function clearPageMode() {
-    document.querySelectorAll('[data-oranix-anc]').forEach(el => el.removeAttribute('data-oranix-anc'));
-    document.documentElement.classList.remove('oranix-on');
+    document.querySelectorAll('[data-qwik-anc]').forEach(el => el.removeAttribute('data-qwik-anc'));
+    document.documentElement.classList.remove('qwik-on');
   }
 
   const isPlaying = () => video && !video.paused && !video.ended;
@@ -386,7 +386,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
   // In an iframe without fullscreen permission, ask the parent (the click's activation reaches ancestors).
   function toggleFullscreen() {
     if (document.fullscreenElement) return document.exitFullscreen();
-    document.documentElement.requestFullscreen().catch(() => { if (!TOP) parent.postMessage({ oranix: 'fs' }, '*'); });
+    document.documentElement.requestFullscreen().catch(() => { if (!TOP) parent.postMessage({ qwik: 'fs' }, '*'); });
   }
 
   // ---------- popups (speed / subtitles & audio) ----------
@@ -444,7 +444,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
 
   // ---------- UI ----------
   function build() {
-    host = document.createElement('oranix-player');
+    host = document.createElement('qwik-player');
     root = host.attachShadow({ mode: 'closed' });
     const btn = (a, icon, tip, cls) => h('div', 'b' + (cls ? ' ' + cls : ''), svg(icon), { 'data-a': a, title: tip });
     const style = document.createElement('style');
@@ -455,7 +455,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
       h('div', 'scrim t'), h('div', 'scrim b'),
       h('div', 'top', [
         back,
-        h('div', 'brand', [h('b', '', svg(ICON.play)), h('span', '', ['Oran', h('i', '', 'ix')])]),
+        h('div', 'brand', [h('b', '', svg(ICON.play)), h('span', '', ['Qwik', h('i', '', 'Player')])]),
         h('div', 'title'),
       ]),
       h('div', 'toast'),
@@ -473,7 +473,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
           h('div', 'sp'),
           btn('speed', ICON.speed, 'Quality & speed (X)'),
           btn('subs', ICON.subs, 'Subtitles & audio (S) · on/off (C)'),
-          btn('expand', ICON.expand, 'Oranix full window (O)'),
+          btn('expand', ICON.expand, 'QwikPlayer full window (O)'),
           btn('full', ICON.full, 'Fullscreen (F)'),
         ]),
       ]),
@@ -608,7 +608,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     wrap.addEventListener('pointerleave', () => { if (!on && isPlaying() && !pop) wrap.classList.add('idle'); });
     wrap.addEventListener('pointerdown', wake, true);
     // Two-finger scroll: vertical = brightness (left half) / volume (right half); sideways = seek 1s.
-    // Directions match the user's Oranix mpv setup (natural touchpad direction).
+    // Directions match the QwikPlayer desktop app (natural touchpad direction).
     wrap.addEventListener('wheel', e => {
       if (pop && pop.contains(e.composedPath()[0])) return;
       // Inline on a page: up/down scrolls the page as usual; only sideways swipes seek.
@@ -648,7 +648,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     ui.prev.title = nav.prev ? 'Previous: ' + nav.prev + ' (Shift+P)' : 'No previous video found';
   }
 
-  // ---------- keys (same as Oranix mpv) ----------
+  // ---------- keys (same as the QwikPlayer desktop app) ----------
   function onKey(e) {
     const t = e.target;
     const typing = t && (t.isContentEditable || /input|textarea|select/i.test(t.tagName));
@@ -657,7 +657,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
       e.preventDefault();
       e.stopImmediatePropagation();
       if (on || skinned) on ? exit() : enter(video);
-      else if (TOP) window.__oranixToggle(); else top.postMessage({ oranix: 'toggle' }, '*');
+      else if (TOP) window.__qwikToggle(); else top.postMessage({ qwik: 'toggle' }, '*');
       return;
     }
     // Player keys work in full window, or inline while the skinned video is on screen.
@@ -684,7 +684,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     wake();
   }
 
-  // ---------- inline skin: the Oranix bar on top of a video, right where it sits on the page ----------
+  // ---------- inline skin: the QwikPlayer bar on top of a video, right where it sits on the page ----------
   let skinned = false, placeRAF = 0, lastRect = '';
 
   function attach(v) {
@@ -693,7 +693,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     video = v;
     skinned = true;
     addPageStyle();
-    document.documentElement.classList.add('oranix-skin');   // hides the site's own control bar
+    document.documentElement.classList.add('qwik-skin');   // hides the site's own control bar
     nativeControls = v.controls;
     v.controls = false;
     if (!host) build();
@@ -717,7 +717,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     video.controls = nativeControls;
     video.removeEventListener('ended', showUpNext);
     if (upnext) { clearTimeout(upnextT); upnext.remove(); upnext = null; }
-    document.documentElement.classList.remove('oranix-skin');
+    document.documentElement.classList.remove('qwik-skin');
     host.remove();
   }
 
@@ -773,8 +773,8 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     attach(v);
     on = true;
     markAncestors(v);
-    v.setAttribute('data-oranix', '');
-    document.documentElement.classList.add('oranix-on');
+    v.setAttribute('data-qwik', '');
+    document.documentElement.classList.add('qwik-on');
     wrap.classList.add('full');
     wrap.removeAttribute('style');
     lastRect = '';
@@ -789,12 +789,12 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     if (!on) return;
     on = false;
     closePop();
-    video.removeAttribute('data-oranix');
+    video.removeAttribute('data-qwik');
     video.style.removeProperty('object-fit');   // undo pinch zoom
     clearPageMode();
     wrap.classList.remove('full');
     if (document.fullscreenElement) document.exitFullscreen();
-    if (!TOP) parent.postMessage({ oranix: 'exited' }, '*');
+    if (!TOP) parent.postMessage({ qwik: 'exited' }, '*');
     renderDetector();
     notifyHost();
     dispatchEvent(new Event('resize'));
@@ -804,7 +804,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
   // Every frame lists its own videos and reports them (plus its children's) to its parent, so the
   // top page knows every video on the page, even inside embedded players from other sites.
   let nextId = 1, lastSig = '', childVideos = new Map();
-  const idOf = v => v.dataset.oranixId || (v.dataset.oranixId = String(nextId++));
+  const idOf = v => v.dataset.qwikId || (v.dataset.qwikId = String(nextId++));
   const frames = () => [...document.querySelectorAll('iframe')];
 
   function localVideos() {
@@ -823,13 +823,13 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
   function report() {
     if (TOP) return renderDetector();
     const list = allVideos(), sig = JSON.stringify(list);
-    if (sig !== lastSig) { lastSig = sig; parent.postMessage({ oranix: 'report', videos: list }, '*'); }
+    if (sig !== lastSig) { lastSig = sig; parent.postMessage({ qwik: 'report', videos: list }, '*'); }
   }
 
   // Play a video by its path of iframe indexes: pin each iframe on the way down, then enter in the last frame.
   function playPath(path, id) {
     if (!path.length) {
-      const v = document.querySelector('video[data-oranix-id="' + id + '"]');
+      const v = document.querySelector('video[data-qwik-id="' + id + '"]');
       if (v) { enter(v); if (v.paused) v.play().catch(() => {}); }
       return;
     }
@@ -837,17 +837,17 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     if (!f) return;
     addPageStyle();
     markAncestors(f);
-    f.setAttribute('data-oranix-frame', '');
-    document.documentElement.classList.add('oranix-on');
+    f.setAttribute('data-qwik-frame', '');
+    document.documentElement.classList.add('qwik-on');
     enlargedFrame = f;
     renderDetector();
     notifyHost();
-    f.contentWindow.postMessage({ oranix: 'play', path: path.slice(1), id: id }, '*');
+    f.contentWindow.postMessage({ qwik: 'play', path: path.slice(1), id: id }, '*');
     sendNavInfo();
   }
   function restoreFrame() {
     if (!enlargedFrame) return;
-    enlargedFrame.removeAttribute('data-oranix-frame');
+    enlargedFrame.removeAttribute('data-qwik-frame');
     enlargedFrame = null;
     clearPageMode();
     renderDetector();
@@ -856,36 +856,36 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
   // Pass next/previous labels down to the embedded player that is showing.
   function sendNavInfo(info) {
     if (!enlargedFrame) return;
-    enlargedFrame.contentWindow.postMessage({ oranix: 'navinfo', nav: info || currentNav() }, '*');
+    enlargedFrame.contentWindow.postMessage({ qwik: 'navinfo', nav: info || currentNav() }, '*');
   }
 
   addEventListener('message', e => {
     const d = e.data;
-    if (!d || typeof d !== 'object' || !d.oranix) return;
+    if (!d || typeof d !== 'object' || !d.qwik) return;
     const idx = frames().findIndex(f => f.contentWindow === e.source);
-    if (d.oranix === 'report' && idx >= 0 && Array.isArray(d.videos)) {
+    if (d.qwik === 'report' && idx >= 0 && Array.isArray(d.videos)) {
       childVideos.set(idx, d.videos.map(v => Object.assign({}, v, { path: [idx].concat(v.path) })));
       report();
-    } else if (d.oranix === 'play' && e.source === parent && Array.isArray(d.path)) {
+    } else if (d.qwik === 'play' && e.source === parent && Array.isArray(d.path)) {
       playPath(d.path, d.id);
-    } else if (d.oranix === 'stop' && e.source === parent) {
-      if (on) exit(); else if (enlargedFrame) { enlargedFrame.contentWindow.postMessage({ oranix: 'stop' }, '*'); restoreFrame(); }
-    } else if (d.oranix === 'exited' && idx >= 0) {
+    } else if (d.qwik === 'stop' && e.source === parent) {
+      if (on) exit(); else if (enlargedFrame) { enlargedFrame.contentWindow.postMessage({ qwik: 'stop' }, '*'); restoreFrame(); }
+    } else if (d.qwik === 'exited' && idx >= 0) {
       restoreFrame();
-      if (!TOP) parent.postMessage({ oranix: 'exited' }, '*');
-    } else if (d.oranix === 'fs' && idx >= 0) {
+      if (!TOP) parent.postMessage({ qwik: 'exited' }, '*');
+    } else if (d.qwik === 'fs' && idx >= 0) {
       toggleFullscreen();
-    } else if (d.oranix === 'toggle' && TOP) {
-      window.__oranixToggle();
-    } else if (d.oranix === 'go' && idx >= 0 && (d.dir === 'next' || d.dir === 'prev')) {
+    } else if (d.qwik === 'toggle' && TOP) {
+      window.__qwikToggle();
+    } else if (d.qwik === 'go' && idx >= 0 && (d.dir === 'next' || d.dir === 'prev')) {
       if (TOP) goNav(d.dir); else parent.postMessage(d, '*');
-    } else if (d.oranix === 'navinfo' && e.source === parent && d.nav) {
+    } else if (d.qwik === 'navinfo' && e.source === parent && d.nav) {
       remoteNav = { next: String(d.nav.next || ''), prev: String(d.nav.prev || '') };
       sendNavInfo(remoteNav);
     }
   });
 
-  // Floating "Watch in Oranix" pill + chooser (top page only).
+  // Floating "Watch in QwikPlayer" pill + chooser (top page only).
   const DETECT_CSS = `
 :host{all:initial}
 .pill{position:fixed;top:14px;right:18px;z-index:2147483647;display:flex;align-items:center;gap:10px;padding:8px 14px 8px 8px;
@@ -915,13 +915,13 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     if (!TOP) return;
     const vids = (on || enlargedFrame) ? [] : allVideos()
       .sort((a, b) => (b.playing - a.playing) || (b.w * b.h - a.w * a.h));
-    // A single video already has the Oranix bar on it; the pill is for choosing between several.
+    // A single video already has the QwikPlayer bar on it; the pill is for choosing between several.
     if (vids.length < 2) { if (dHost) dHost.remove(); listOpen = false; dSig = ''; return; }
     const sig = JSON.stringify(vids) + listOpen;   // only redraw when something changed (no flicker)
     if (sig === dSig && dHost && dHost.isConnected) return;
     dSig = sig;
     if (!dHost) {
-      dHost = document.createElement('oranix-detector');
+      dHost = document.createElement('qwik-detector');
       dRoot = dHost.attachShadow({ mode: 'closed' });
     }
     if (!dHost.isConnected) document.documentElement.appendChild(dHost);
@@ -929,7 +929,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     style.textContent = DETECT_CSS;
     const pill = h('div', 'pill' + (vids.some(v => v.playing) ? ' live' : ''), [
       h('div', 'dot', svg(ICON.play)),
-      vids.length === 1 ? 'Watch in Oranix' : 'Videos on this page',
+      vids.length === 1 ? 'Watch in QwikPlayer' : 'Videos on this page',
       vids.length > 1 ? h('span', 'n', String(vids.length)) : '',
     ]);
     pill.onclick = () => { if (vids.length === 1) playEntry(vids[0]); else { listOpen = !listOpen; renderDetector(); } };
@@ -949,9 +949,9 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
   }
 
   // Host toolbar button / O key: leave the player, or play the only video, or open the chooser.
-  window.__oranixToggle = () => {
+  window.__qwikToggle = () => {
     if (on) { exit(); return false; }
-    if (enlargedFrame) { enlargedFrame.contentWindow.postMessage({ oranix: 'stop' }, '*'); restoreFrame(); return false; }
+    if (enlargedFrame) { enlargedFrame.contentWindow.postMessage({ qwik: 'stop' }, '*'); restoreFrame(); return false; }
     if (skinned) { enter(video); return true; }
     const vids = allVideos();
     if (!vids.length) return null;
@@ -965,7 +965,7 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
   ['loadedmetadata', 'play'].forEach(t => document.addEventListener(t, () => setTimeout(autoSkin, 0), true));
   ['play', 'pause', 'loadedmetadata'].forEach(t => document.addEventListener(t, () => setTimeout(report, 50), true));
 
-  // Videos play inline with the Oranix bar (autoSkin). The full window opens on its own only when
+  // Videos play inline with the QwikPlayer bar (autoSkin). The full window opens on its own only when
   // the next video starts after Next/Previous was pressed from the full window.
   document.addEventListener('play', e => {
     const v = e.target;
@@ -973,10 +973,10 @@ html.oranix-on .ytp-caption-window-container{visibility:visible!important;positi
     if (continueNext && v.getBoundingClientRect().width >= 120) { continueNext = false; enter(v); }
   }, true);
 
-  // After Next/Previous loaded a whole new page: pick up the main video and keep playing in Oranix.
+  // After Next/Previous loaded a whole new page: pick up the main video and keep playing in QwikPlayer.
   if (TOP) {
     let since = 0;
-    try { since = +sessionStorage.getItem('oranix-continue') || 0; sessionStorage.removeItem('oranix-continue'); } catch (_) {}
+    try { since = +sessionStorage.getItem('qwik-continue') || 0; sessionStorage.removeItem('qwik-continue'); } catch (_) {}
     if (Date.now() - since < 60000) {
       continueNext = true;
       let tries = 0;

@@ -1,12 +1,26 @@
--- Netflix-style "Skip Intro" button. Intro and credits times come from the player (Intros.cs compares the
--- audio of neighbouring episodes) via %LOCALAPPDATA%\Oranix\Player\intros.json, or from chapters named
+-- "Skip Intro" button. Intro and credits times come from the player (Intros.cs compares the
+-- audio of neighbouring episodes) via intros.json in the player's data folder, or from chapters named
 -- Intro/Opening/OP. Click the button or press Enter while it shows.
--- Also publishes user-data/oranix/credits (start of the end credits) for next-episode.lua.
+-- Also publishes user-data/qwik/credits (start of the end credits) for next-episode.lua.
 
 local utils = require "mp.utils"
 local ov = mp.create_osd_overlay("ass-events")
 local info, visible, hovering, box = nil, false, false, nil
-local FILE = (os.getenv("LOCALAPPDATA") or "") .. "\\Oranix\\Player\\intros.json"
+
+-- intros.json is in the player's data folder. The app passes that folder as script-opts qwik-data_dir;
+-- without it the same rule as the app applies: %LOCALAPPDATA%\QwikPlayer\Player, or the folder from
+-- before the rename (Oranix\Player) when only that one exists.
+local function data_file(name)
+  local dir = (mp.get_property_native("script-opts") or {})["qwik-data_dir"]
+  if not dir or dir == "" then
+    local base = os.getenv("LOCALAPPDATA") or ""
+    local old = base .. "\\Oranix\\Player"
+    dir = base .. "\\QwikPlayer\\Player"
+    if not utils.file_info(dir) and utils.file_info(old) then dir = old end
+  end
+  return dir .. "\\" .. name
+end
+local FILE = data_file("intros.json")
 
 local function norm(p) return (p or ""):gsub("/", "\\"):lower() end
 
@@ -36,7 +50,7 @@ local function load()
       end
     end
   end
-  mp.set_property_native("user-data/oranix/credits", info and info.creditsStart or -1)
+  mp.set_property_native("user-data/qwik/credits", info and info.creditsStart or -1)
 end
 
 local function rrect(x, y, w, h, r, color, alpha, extra)
@@ -68,7 +82,7 @@ local function draw()
   box = { x = x, y = y, w = bw, h = bh }
   ov.res_x, ov.res_y = w, h
   ov.data = table.concat({
-    -- Netflix look: dark glass with a white outline; fills white on hover
+    -- Look: dark glass with a white outline; fills white on hover
     rrect(x, y, bw, bh, math.floor(8 * s), hovering and "FFFFFF" or "1A1A1A", hovering and "00" or "40",
       "\\bord" .. math.max(1, math.floor(3 * s)) .. "\\3c&HFFFFFF&\\3a&H00&"),
     string.format("{\\an5\\pos(%d,%d)\\fnPoppins\\b1\\fs%d\\bord0\\shad0\\1c&H%s&}Skip Intro", x + math.floor(bw / 2), y + math.floor(bh / 2),

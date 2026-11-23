@@ -1,11 +1,11 @@
-# Contributing to Oranix
+# Contributing to QwikPlayer
 
-Thanks for helping! Oranix is small on purpose — a few plain files per app, no frameworks — so most changes are quick to make and easy to review.
+Thanks for helping! QwikPlayer is small on purpose — a few plain files per app, no frameworks — so most changes are quick to make and easy to review.
 
 ## Ways to help
 
-- **Report a bug** or **suggest a feature** with the [issue templates](https://github.com/lazankit/oranix/issues/new/choose).
-- **Pick up an issue** labelled [`good first issue`](https://github.com/lazankit/oranix/labels/good%20first%20issue) — comment on it so nobody doubles up.
+- **Report a bug** or **suggest a feature** with the [issue templates](https://github.com/lazankit/qwikplayer/issues/new/choose).
+- **Pick up an issue** labelled [`good first issue`](https://github.com/lazankit/qwikplayer/labels/good%20first%20issue) — comment on it so nobody doubles up.
 - **Improve the docs** — if something in the README confused you, it'll confuse the next person too.
 
 ## Where things live
@@ -13,14 +13,14 @@ Thanks for helping! Oranix is small on purpose — a few plain files per app, no
 | You want to change… | Edit |
 |---|---|
 | Player look, keys, gestures, popups | `player/config/` (`input.conf`, `script-opts/uosc.conf`, `scripts/*.lua`) |
-| Player launcher (window icon, live restart) | `player/launcher/OranixPlayer.cs` |
-| The web player bar (Windows **and** Android) | `web/oranix-player.js` |
-| Oranix Web start page | `web/start.html` |
-| Oranix Web window, toolbar, ad shield (Windows) | `web/OranixBrowse.cs` |
-| Oranix Web for Android | `android/src/com/oranix/web/MainActivity.java` |
-| Oranix for Chrome (manifest; the blocklist is built from `web/OranixBrowse.cs`) | `chrome/manifest.json`, `chrome/build.ps1` |
-| Oranix Player for Linux | `linux/install.sh` |
-| Installer | `installer/Oranix.iss` |
+| Player launcher (window icon, live restart) | `player/launcher/QwikPlayer.cs` |
+| The web player bar (Windows **and** Android) | `web/qwik-player.js` |
+| QwikPlayer Web start page | `web/start.html` |
+| QwikPlayer Web window, toolbar, ad shield (Windows) | `web/QwikBrowse.cs` |
+| QwikPlayer Web for Android | `android/src/com/qwikplayer/web/MainActivity.java` |
+| QwikPlayer for Chrome (manifest; the blocklist is built from `web/QwikBrowse.cs`) | `chrome/manifest.json`, `chrome/build.ps1` |
+| QwikPlayer for Linux | `linux/install.sh` |
+| Installer | `installer/QwikPlayer.iss` |
 
 ## Try your change
 
@@ -32,7 +32,7 @@ Thanks for helping! Oranix is small on purpose — a few plain files per app, no
 .\linux\build.ps1         # Linux package
 ```
 
-Changes to `player/config`, `web/oranix-player.js` and `web/start.html` show up live in running apps after `.\live.ps1` — no rebuild needed.
+Changes to `player/config`, `web/qwik-player.js` and `web/start.html` show up live in running apps after `.\live.ps1` — no rebuild needed.
 
 ## Pull requests
 

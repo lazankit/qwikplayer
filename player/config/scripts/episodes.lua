@@ -1,4 +1,4 @@
--- Netflix-style Episodes panel: a sidebar on the right listing the series' episodes by season.
+-- Episodes panel: a sidebar on the right listing the series' episodes by season.
 -- Open with E or the Episodes button. Click / Enter plays, wheel or Up/Down scrolls,
 -- Left/Right or the season tabs switch season, Esc or a click on the video closes.
 
@@ -10,9 +10,23 @@ local show_name = ""
 
 local function norm(p) return (p or ""):gsub("/", "\\"):lower() end
 
+-- history.json is in the player's data folder. The app passes that folder as script-opts qwik-data_dir;
+-- without it the same rule as the app applies: %LOCALAPPDATA%\QwikPlayer\Player, or the folder from
+-- before the rename (Oranix\Player) when only that one exists.
+local function data_file(name)
+  local dir = (mp.get_property_native("script-opts") or {})["qwik-data_dir"]
+  if not dir or dir == "" then
+    local base = os.getenv("LOCALAPPDATA") or ""
+    local old = base .. "\\Oranix\\Player"
+    dir = base .. "\\QwikPlayer\\Player"
+    if not utils.file_info(dir) and utils.file_info(old) then dir = old end
+  end
+  return dir .. "\\" .. name
+end
+
 local function load_history()
   history = {}
-  local f = io.open((os.getenv("LOCALAPPDATA") or "") .. "\\Oranix\\Player\\history.json", "r")
+  local f = io.open(data_file("history.json"), "r")
   if not f then return end
   local data = utils.parse_json(f:read("*a") or "")
   f:close()
@@ -82,7 +96,7 @@ local function render()
   local g = geo()
   local s, out = g.s, {}
   hits = {}
-  -- Panel: near-opaque dark sheet with a soft shadow on its left edge, like Netflix's episode drawer.
+  -- Panel: near-opaque dark sheet with a soft shadow on its left edge.
   table.insert(out, rrect(g.x - math.floor(40 * s), 0, math.floor(60 * s), g.h, 0, "000000", "60", "\\blur" .. math.floor(30 * s)))
   table.insert(out, rrect(g.x, 0, g.pw, g.h, 0, "141414", "0A"))
   local x0 = g.x + g.pad

@@ -1,10 +1,10 @@
-# Chrome Web Store listing — Oranix for Chrome
+# Chrome Web Store listing — QwikPlayer for Chrome
 
-Upload `chrome/out/oranix-chrome.zip` at https://chrome.google.com/webstore/devconsole (one-time $5 developer registration), then paste the fields below. The same zip works for the Microsoft Edge Add-ons store (free): https://partner.microsoft.com/dashboard/microsoftedge/
+Upload `chrome/out/qwikplayer-chrome.zip` at https://chrome.google.com/webstore/devconsole (one-time $5 developer registration), then paste the fields below. The same zip works for the Microsoft Edge Add-ons store (free): https://partner.microsoft.com/dashboard/microsoftedge/
 
 ## Store listing
 
-**Name:** Oranix for Chrome
+**Name:** QwikPlayer for Chrome
 
 **Summary (≤132 chars):**
 One clean player bar for every web video — same keys, subtitle & speed menus, gestures — plus an ad and tracker blocklist.
@@ -14,7 +14,7 @@ One clean player bar for every web video — same keys, subtitle & speed menus, 
 **Language:** English
 
 **Description:**
-Every video site has different controls. Oranix replaces them with one consistent, keyboard- and gesture-friendly player bar — right where the video sits on the page.
+Every video site has different controls. QwikPlayer replaces them with one consistent, keyboard- and gesture-friendly player bar — right where the video sits on the page.
 
 • The same bar on YouTube and most sites: play/pause, ±10 s, previous/next, time remaining, volume up to 200 %
 • Quality & speed menu (YouTube and JW Player sites), subtitles & audio menu, C toggles subtitles
@@ -23,7 +23,7 @@ Every video site has different controls. Oranix replaces them with one consisten
 • Picks the right video when a page has several, including videos inside embedded players
 • Blocks 77 ad and tracking networks with Chrome's built-in request blocking (declarativeNetRequest)
 
-Open source (MIT): https://github.com/lazankit/oranix
+Open source (MIT): https://github.com/lazankit/qwikplayer
 
 **Screenshots (1280×800):** `screenshot-1.png`, `screenshot-2.png`
 **Small promo tile (440×280):** `promo-440x280.png`
@@ -38,6 +38,6 @@ Open source (MIT): https://github.com/lazankit/oranix
 
 **Remote code:** No — all code is in the package.
 
-**Data usage:** Oranix for Chrome does not collect, store or transmit any user data. Tick none of the data categories. Certify the three disclosures (no selling, no unrelated use, no creditworthiness use).
+**Data usage:** QwikPlayer for Chrome does not collect, store or transmit any user data. Tick none of the data categories. Certify the three disclosures (no selling, no unrelated use, no creditworthiness use).
 
-**Privacy policy URL:** https://github.com/lazankit/oranix#privacy
+**Privacy policy URL:** https://github.com/lazankit/qwikplayer#privacy

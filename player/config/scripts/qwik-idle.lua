@@ -1,4 +1,4 @@
--- Oranix start screen: shown when the player is open with nothing playing.
+-- QwikPlayer start screen: shown when the player is open with nothing playing.
 
 local ov = mp.create_osd_overlay("ass-events")
 local ORANGE, LIGHT, GRAY = "1409E5", "473DFF", "B5B5B5"   -- BGR of #FF7A00, #FFA94D, #B5B5B5
@@ -34,7 +34,7 @@ local function draw()
     string.format("{\\an7\\pos(%d,%d)\\bord0\\shad0\\1c&H%s&\\1a&H40&\\p1}m 0 0 l %d %d l 0 %d{\\p0}",
       p(lx + L * 0.18), p(ly + L * 0.3), LIGHT, p(L * 0.4), p(L * 0.2), p(L * 0.4)),
     -- Wordmark
-    string.format("{\\an4\\pos(%d,%d)\\fnPoppins\\b1\\fs%d\\bord0\\shad0\\1c&HFFFFFF&}{\\1c&H%s&}NOTFLIX{\\b0\\fs%d\\fsp%d\\1c&HFFFFFF&}  PLAYER",
+    string.format("{\\an4\\pos(%d,%d)\\fnPoppins\\b1\\fs%d\\bord0\\shad0\\1c&HFFFFFF&}{\\1c&H%s&}QWIK{\\b0\\fs%d\\fsp%d\\1c&HFFFFFF&}  PLAYER",
       p(lx + L + 50 * s), p(cy), p(150 * s), ORANGE, p(38 * s), p(6 * s)),
     -- Tagline + hint
     string.format("{\\an8\\pos(%d,%d)\\fnPoppins\\fs%d\\bord0\\shad0\\1c&H%s&\\fsp%d}Play More. Worry Less.",

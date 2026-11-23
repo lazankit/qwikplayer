@@ -4,6 +4,6 @@
 
 ## How I tested it
 
-- [ ] Oranix Player (Windows)
-- [ ] Oranix Web (Windows)
-- [ ] Oranix Web (Android)
+- [ ] QwikPlayer (Windows)
+- [ ] QwikPlayer Web (Windows)
+- [ ] QwikPlayer Web (Android)

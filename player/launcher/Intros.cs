@@ -1,6 +1,6 @@
 // Skip Intro / Skip Credits: finds the theme song and the end credits of a series by comparing the
 // audio of neighbouring episodes (the part that sounds the same in both is the intro / credits).
-// Results are cached in %LOCALAPPDATA%\Oranix\Player\intros.json and read by scripts\skip-intro.lua.
+// Results are cached in intros.json in the data folder (Library.DataDir) and read by scripts\skip-intro.lua.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

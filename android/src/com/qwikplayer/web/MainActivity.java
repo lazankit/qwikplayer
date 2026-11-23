@@ -1,4 +1,4 @@
-package com.oranix.web;
+package com.qwikplayer.web;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -44,11 +44,11 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * Oranix Web for Android: a light WebView browser with an ad/popup/redirect shield where web video
- * plays with the Oranix player bar (assets/oranix-player.js, shared with the Windows app).
+ * QwikPlayer Web for Android: a light WebView browser with an ad/popup/redirect shield where web video
+ * plays with the QwikPlayer bar (assets/qwik-player.js, shared with the Windows app).
  */
 public class MainActivity extends Activity {
-    static final String HOME = "https://oranix.home/index.html";
+    static final String HOME = "https://qwik.home/index.html";
     static final int CHARCOAL = 0xFF1F1F1F, ORANGE = 0xFFFF7A00, PEACH = 0xFFFFA94D;
 
     // Ad, pop-under and tracking networks; matched against the request host and its parents.
@@ -74,9 +74,9 @@ public class MainActivity extends Activity {
 
     // Runs in every page: neuters popup tricks and gives pages the same message bridge as the Windows app.
     static final String GUARD_JS = "(() => {"
-        + "if (window.__oranixGuard) return; window.__oranixGuard = true;"
+        + "if (window.__qwikGuard) return; window.__qwikGuard = true;"
         + "if (!window.chrome || !window.chrome.webview) { window.chrome = window.chrome || {};"
-        + "  window.chrome.webview = { postMessage: m => window.OranixHost && OranixHost.postMessage(String(m)) }; }"
+        + "  window.chrome.webview = { postMessage: m => window.QwikHost && QwikHost.postMessage(String(m)) }; }"
         + "const noop = () => null;"
         + "try { Object.defineProperty(window, 'open', { value: noop, writable: false }); } catch (e) { window.open = noop; }"
         + "window.addEventListener('beforeunload', e => e.stopImmediatePropagation(), true);"
@@ -118,7 +118,7 @@ public class MainActivity extends Activity {
         getWindow().setStatusBarColor(CHARCOAL);
         getWindow().setNavigationBarColor(CHARCOAL);
         tuneDisplay();
-        playerJs = asset("oranix-player.js");
+        playerJs = asset("qwik-player.js");
         startTemplate = asset("start.html");
         prefs = getSharedPreferences("library", MODE_PRIVATE);
         try { saved = new JSONArray(prefs.getString("saved", "[]")); } catch (Exception e) { saved = new JSONArray(); }
@@ -234,14 +234,14 @@ public class MainActivity extends Activity {
         // Speed: keep the page renderer at top priority and pre-render just off screen for smooth scrolling.
         web.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false);
         s.setOffscreenPreRaster(true);
-        web.addJavascriptInterface(new Host(), "OranixHost");
+        web.addJavascriptInterface(new Host(), "QwikHost");
 
         web.setWebViewClient(new WebViewClient() {
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
                 Uri u = req.getUrl();
                 String url = u.toString();
-                if (url.startsWith("https://oranix.home/")) {
+                if (url.startsWith("https://qwik.home/")) {
                     byte[] html = startPage().getBytes(StandardCharsets.UTF_8);
                     return new WebResourceResponse("text/html", "utf-8", new ByteArrayInputStream(html));
                 }
@@ -270,7 +270,7 @@ public class MainActivity extends Activity {
             public void onPageStarted(WebView view, String url, android.graphics.Bitmap icon) {
                 injectedEarly = false;
                 inject();
-                if (!url.startsWith("https://oranix.home/")) address.setText(url); else address.setText("");
+                if (!url.startsWith("https://qwik.home/")) address.setText(url); else address.setText("");
                 playerOn = false;
                 updateStar();
             }
@@ -299,7 +299,7 @@ public class MainActivity extends Activity {
             @Override
             public void onReceivedTitle(WebView view, String title) { addHistory(view.getUrl(), title); }
 
-            // Page asked for fullscreen (Oranix player F / double tap): fill the screen, landscape, no system bars.
+            // Page asked for fullscreen (F / double tap in the QwikPlayer bar): fill the screen, landscape, no system bars.
             @Override
             public void onShowCustomView(View view, CustomViewCallback callback) {
                 if (customView != null) { callback.onCustomViewHidden(); return; }
@@ -412,11 +412,11 @@ public class MainActivity extends Activity {
         address.clearFocus();
     }
 
-    // Back: leave fullscreen, then the Oranix player, then go back a page.
+    // Back: leave fullscreen, then player mode, then go back a page.
     @Override
     public void onBackPressed() {
         if (customView != null) { web.evaluateJavascript("document.exitFullscreen && document.exitFullscreen()", null); leaveFullscreen(); return; }
-        if (playerOn) { playerOn = false; web.evaluateJavascript("window.__oranixToggle && window.__oranixToggle()", null); return; }
+        if (playerOn) { playerOn = false; web.evaluateJavascript("window.__qwikToggle && window.__qwikToggle()", null); return; }
         if (web.canGoBack()) { web.goBack(); return; }
         super.onBackPressed();
     }
@@ -435,7 +435,7 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> {
                 if ("player:on".equals(msg)) playerOn = true;
                 else if ("player:off".equals(msg)) playerOn = false;
-                else if (web.getUrl() != null && web.getUrl().startsWith("https://oranix.home/")) {   // start page only
+                else if (web.getUrl() != null && web.getUrl().startsWith("https://qwik.home/")) {   // start page only
                     if (msg.startsWith("unsave:")) remove(saved, msg.substring(7));
                     else if (msg.startsWith("forget:")) remove(history, msg.substring(7));
                     else if (msg.equals("clear-history")) history = new JSONArray();
@@ -449,7 +449,7 @@ public class MainActivity extends Activity {
 
     // ---------- saved sites, history, start page ----------
 
-    static boolean isWeb(String url) { return url != null && url.startsWith("http") && !url.startsWith("https://oranix.home/"); }
+    static boolean isWeb(String url) { return url != null && url.startsWith("http") && !url.startsWith("https://qwik.home/"); }
 
     void saveLibrary() {
         prefs.edit().putString("saved", saved.toString()).putString("history", history.toString()).apply();

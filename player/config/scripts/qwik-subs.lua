@@ -1,9 +1,9 @@
--- Oranix subtitle engine (the menus live in track-popup.lua):
+-- QwikPlayer subtitle engine (the menus live in track-popup.lua):
 --   * find subtitles online (OpenSubtitles — the same database VLSub uses), by file hash and by name
 --   * download one and load it, saved next to the video so it loads automatically next time
 --   * sync a subtitle to the audio with alass (bundled on Windows; `alass` on PATH elsewhere)
 --   * subtitle style (size, font, background, colour, position), remembered between sessions
--- State for the menus is published as the property user-data/oranix-subs.
+-- State for the menus is published as the property user-data/qwik-subs.
 
 local utils = require "mp.utils"
 
@@ -21,8 +21,20 @@ local LANGS = {
 
 -- ---------- settings (outside the config folder, so saving doesn't trigger a live reload) ----------
 
-local data_dir = WIN and ((os.getenv("LOCALAPPDATA") or os.getenv("TEMP")) .. "\\Oranix\\Player")
-  or ((os.getenv("XDG_DATA_HOME") or (os.getenv("HOME") .. "/.local/share")) .. "/oranix-player")
+-- The app passes its data folder as script-opts qwik-data_dir. Without it (Linux, or scripts pushed
+-- into an older build) the same rule as the app applies: the QwikPlayer folder, or the one from before the
+-- rename ("Oranix") when only that one exists.
+local function pick(now, old) if not utils.file_info(now) and utils.file_info(old) then return old end return now end
+local data_dir = (mp.get_property_native("script-opts") or {})["qwik-data_dir"]
+if not data_dir or data_dir == "" then
+  if WIN then
+    local base = os.getenv("LOCALAPPDATA") or os.getenv("TEMP")
+    data_dir = pick(base .. "\\QwikPlayer\\Player", base .. "\\Oranix\\Player")
+  else
+    local base = os.getenv("XDG_DATA_HOME") or (os.getenv("HOME") .. "/.local/share")
+    data_dir = pick(base .. "/qwikplayer", base .. "/oranix-player")
+  end
+end
 local settings_file = utils.join_path(data_dir, "subtitles.json")
 local temp_dir = os.getenv("TEMP") or os.getenv("TMPDIR") or "/tmp"
 
@@ -64,7 +76,7 @@ local state = { status = "idle", results = {}, query = "", lang = "eng" }
 local function publish()
   state.lang = settings.lang
   state.settings = settings
-  mp.set_property_native("user-data/oranix-subs", state)
+  mp.set_property_native("user-data/qwik-subs", state)
 end
 
 -- ---------- style ----------
@@ -202,7 +214,7 @@ local function search()
     publish()
     if auto_pick then
       auto_pick = false
-      if #found > 0 then mp.commandv("script-message", "oranix-subs-download", "1") 
+      if #found > 0 then mp.commandv("script-message", "qwik-subs-download", "1") 
       else mp.osd_message("No subtitles found online for this episode", 3) end
     end
   end
@@ -235,7 +247,7 @@ end
 -- ---------- download ----------
 
 local function writable(dir)
-  local probe = utils.join_path(dir, ".oranix-write-test")
+  local probe = utils.join_path(dir, ".qwik-write-test")
   local f = io.open(probe, "w")
   if not f then return false end
   f:close(); os.remove(probe)
@@ -253,7 +265,7 @@ local function download(index)
   if utils.file_info(target) then   -- don't overwrite another download for the same video
     target = utils.join_path(dir, base .. "." .. (r.iso ~= "" and r.iso or "sub") .. "." .. os.time() .. "." .. r.format)
   end
-  local gz = utils.join_path(temp_dir, "oranix-sub-" .. os.time() .. ".gz")
+  local gz = utils.join_path(temp_dir, "qwik-sub-" .. os.time() .. ".gz")
   mp.osd_message("⤓ Downloading subtitles…", 10)
   curl(r.link, gz, function(ok)
     if not ok then mp.osd_message("Download failed — try another subtitle", 4) return end
@@ -295,7 +307,7 @@ local function sync()
   if WIN then
     local bin = native(utils.join_path(app_dir() or "", "alass\\bin"))
     exe, ffmpeg = bin .. "\\alass-cli.exe", bin .. "\\ffmpeg.exe"
-    if not utils.file_info(exe) then mp.osd_message("Sync isn't installed with this copy of Oranix Player", 4) return end
+    if not utils.file_info(exe) then mp.osd_message("Sync isn't installed with this copy of QwikPlayer", 4) return end
   end
 
   local stamp = os.time()
@@ -329,7 +341,7 @@ local function sync()
     align(native(track["external-filename"]), false)
   else
     -- Embedded subtitle: copy it out with ffmpeg first.
-    local tmp = native(utils.join_path(temp_dir, "oranix-embedded-" .. stamp .. ".srt"))
+    local tmp = native(utils.join_path(temp_dir, "qwik-embedded-" .. stamp .. ".srt"))
     run({ ffmpeg, "-y", "-v", "error", "-i", video, "-map", "0:" .. tostring(track["ff-index"]), tmp }, function(ok)
       if not ok then done(false, "✗ Couldn't read the built-in subtitles" .. (WIN and "" or " (needs ffmpeg)")) return end
       align(tmp, true)
@@ -341,7 +353,7 @@ end
 
 mp.register_script_message("search", function() search() end)
 mp.register_script_message("download", download)
-mp.register_script_message("oranix-subs-download", download)
+mp.register_script_message("qwik-subs-download", download)
 -- Next episode with subtitles on but none in the folder: fetch the best match quietly.
 mp.register_script_message("auto", function() auto_pick = true; mp.osd_message("Finding subtitles for this episode…", 3); search() end)
 mp.register_script_message("sync", sync)
